@@ -32,7 +32,7 @@ export const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
     'Content-Type': 'application/json',
   };
 
-  const response = await fetch(`${API_URL}/${url}`, { ...options, headers });
+  const response = await fetch(`${API_URL}${url}`, { ...options, headers });
   
   if (response.status === 401) {
     clearAuthToken();
