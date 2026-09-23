@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: application-entrainement
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: application-entrainement
+  template:
+    metadata:
+      labels:
+        app: application-entrainement
+    spec:
+      containers:
+      - name: backend
+        image: application-entrainement-backend:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: DATABASE_URL
+          value: "postgresql://user:password@postgres-service:5432/application_db"
+      - name: frontend
+        image: application-entrainement-frontend:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: NEXT_PUBLIC_API_URL
+          value: "http://localhost:8000/api"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: application-entrainement-service
+spec:
+  selector:
+    app: application-entrainement
+  ports:
+  - name: backend
+    port: 8000
+    targetPort: 8000
+  - name: frontend
+    port: 3000
+    targetPort: 3000
+  type: LoadBalancer
