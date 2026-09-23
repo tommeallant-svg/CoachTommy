@@ -1,0 +1,5 @@
+{
+  "build": {
+    "dockerComposePath": "./docker-compose.yml"
+  }
+}
