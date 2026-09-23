@@ -1,3 +1,5 @@
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
 export const getAuthToken = () => {
   if (typeof window !== 'undefined') {
     return localStorage.getItem('token');
@@ -30,7 +32,7 @@ export const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
     'Content-Type': 'application/json',
   };
 
-  const response = await fetch(url, { ...options, headers });
+  const response = await fetch(`${API_URL}/${url}`, { ...options, headers });
   
   if (response.status === 401) {
     clearAuthToken();
