@@ -1,5 +1,18 @@
 {
-  "build": {
-    "dockerComposePath": "./docker-compose.yml"
-  }
+  "services": [
+    {
+      "name": "frontend",
+      "dockerfilePath": "./frontend/Dockerfile",
+      "build": {
+        "context": "./frontend"
+      }
+    },
+    {
+      "name": "backend",
+      "dockerfilePath": "./backend/Dockerfile",
+      "build": {
+        "context": "./backend"
+      }
+    }
+  ]
 }
