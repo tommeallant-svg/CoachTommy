@@ -27,10 +27,10 @@ L'application sera accessible sur :
 
 ## Initialisation de la base de données (Seeding)
 
-Pour peupler la base de données PostgreSQL avec des données de test, exécutez la commande suivante :
+Pour peupler la base de données PostgreSQL avec des données de test, exécutez la commande suivante une fois que les services sont lancés :
 
 ```bash
-docker exec application-entrainement-backend-1 python seed.py
+docker-compose exec backend python seed.py
 ```
 
 ## Déploiement Kubernetes

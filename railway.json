@@ -1,18 +1,20 @@
 {
-  "services": [
-    {
-      "name": "frontend",
-      "dockerfilePath": "./frontend/Dockerfile",
+  "$schema": "https://railway.app/railway.schema.json",
+  "version": 2,
+  "services": {
+    "backend": {
       "build": {
-        "context": "./frontend"
+        "builder": "DOCKERFILE",
+        "dockerfilePath": "backend/Dockerfile",
+        "context": "backend"
       }
     },
-    {
-      "name": "backend",
-      "dockerfilePath": "./backend/Dockerfile",
+    "frontend": {
       "build": {
-        "context": "./backend"
+        "builder": "DOCKERFILE",
+        "dockerfilePath": "frontend/Dockerfile",
+        "context": "frontend"
       }
     }
-  ]
+  }
 }
