@@ -3,17 +3,17 @@
   "version": 2,
   "services": {
     "backend": {
+      "root": "backend",
       "build": {
         "builder": "DOCKERFILE",
-        "dockerfilePath": "backend/Dockerfile",
-        "context": "backend"
+        "dockerfilePath": "Dockerfile"
       }
     },
     "frontend": {
+      "root": "frontend",
       "build": {
         "builder": "DOCKERFILE",
-        "dockerfilePath": "frontend/Dockerfile",
-        "context": "frontend"
+        "dockerfilePath": "Dockerfile"
       }
     }
   }
