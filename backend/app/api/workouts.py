@@ -1,4 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+# backend/app/api/workouts.py — version complète avec la route d'export Garmin
+# Nouveautés par rapport à l'existant :
+#   - import de `Response` (fastapi), `re`, et du service garmin_export
+#   - route GET /api/workouts/{workout_id}/garmin -> téléchargement du fichier .fit
+
+import re
+
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from ..database import get_db
@@ -6,6 +13,7 @@ from ..models.workout import Workout
 from ..models.user import User
 from ..schemas.workout import WorkoutCreate, WorkoutResponse, WorkoutUpdate, WorkoutValidation, WorkoutManualCreate
 from ..auth import get_current_user
+from ..services.garmin_export import generate_workout_fit
 
 router = APIRouter(prefix="/workouts", tags=["workouts"])
 
@@ -89,6 +97,31 @@ def read_workout(workout_id: int, db: Session = Depends(get_db), current_user: U
     if db_workout is None:
         raise HTTPException(status_code=404, detail="Workout not found")
     return db_workout
+
+# ---------------------------------------------------------------------------
+# NOUVEAU : Export Garmin — télécharge la séance au format FIT Workout
+# ---------------------------------------------------------------------------
+@router.get("/{workout_id}/garmin")
+def export_workout_garmin(workout_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    query = db.query(Workout).filter(Workout.id == workout_id)
+    if current_user.role != "coach":
+        query = query.filter(Workout.athlete_id == current_user.id)
+
+    db_workout = query.first()
+    if db_workout is None:
+        raise HTTPException(status_code=404, detail="Workout not found")
+
+    try:
+        fit_bytes = generate_workout_fit(db_workout)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erreur lors de la génération du fichier FIT : {str(e)}")
+
+    safe_name = re.sub(r"[^A-Za-z0-9_.-]+", "_", db_workout.name or "seance")
+    return Response(
+        content=fit_bytes,
+        media_type="application/octet-stream",
+        headers={"Content-Disposition": f'attachment; filename="{safe_name}.fit"'},
+    )
 
 @router.patch("/{workout_id}", response_model=WorkoutResponse)
 def update_workout(workout_id: int, workout: WorkoutUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
