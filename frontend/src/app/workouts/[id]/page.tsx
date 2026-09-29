@@ -11,7 +11,8 @@ import {
   Send,
   Calendar,
   RotateCcw,
-  Dumbbell
+  Dumbbell,
+  Watch
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -42,11 +43,36 @@ export default function WorkoutDetailPage() {
     date: '',
     scheme: [] as any[]
   });
-
+  const [showGarminHelp, setShowGarminHelp] = useState(false);
+  
   useEffect(() => {
     fetchWorkout();
   }, [id]);
-
+  
+  const handleGarminExport = async () => {
+     try {
+       const res = await fetchWithAuth(`/api/workouts/${id}/garmin`);
+       if (!res.ok) {
+         const err = await res.json().catch(() => null);
+         alert(err?.detail || 'Échec de l\'export Garmin');
+         return;
+       }
+       const blob = await res.blob();
+       const url = URL.createObjectURL(blob);
+       const a = document.createElement('a');
+       a.href = url;
+       const safeName = (workout?.name || 'seance').replace(/[^A-Za-z0-9_.-]+/g, '_');
+       a.download = `${safeName}.fit`;
+       document.body.appendChild(a);
+       a.click();
+       a.remove();
+       URL.revokeObjectURL(url);
+       setShowGarminHelp(true);
+     } catch (e) {
+          console.error('Garmin export failed:', e);
+       alert("Erreur réseau lors de l'export Garmin");
+     }
+   };
   const fetchWorkout = async () => {
     try {
       const response = await fetchWithAuth(`/api/workouts/${id}`);
@@ -295,6 +321,13 @@ export default function WorkoutDetailPage() {
                       {format(parseISO(workout.date), 'EEEE d MMMM', { locale: fr })}
                     </div>
                   </div>
+                  <button
+                    onClick={handleGarminExport}
+                    className="mt-4 md:mt-6 flex items-center gap-2 bg-black text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-800 transition-all shadow-lg active:scale-[0.98]"
+                  >
+                    <Watch className="w-4 h-4" />
+                    Exporter vers Garmin
+                  </button>
                 </div>
                 
                 {/* Statistiques : bandeau compact sur mobile, cartes larges sur desktop */}
@@ -483,6 +516,40 @@ export default function WorkoutDetailPage() {
           </>
         )}
       </div>
+      {showGarminHelp && (
+         <div
+           className="fixed inset-0 bg-black/40 backdrop-blur-md z-50 flex items-center justify-center p-4"
+           onClick={() => setShowGarminHelp(false)}
+         >
+           <div
+             className="bg-white rounded-2xl md:rounded-[2rem] max-w-md w-full p-6 md:p-8 space-y-5"
+             onClick={e => e.stopPropagation()}
+           >
+             <div className="flex items-center gap-3">
+               <div className="bg-black p-2.5 rounded-xl">
+                 <Watch className="w-5 h-5 text-white" />
+               </div>
+               <h3 className="text-lg font-black uppercase tracking-tight">Fichier Garmin téléchargé</h3>
+             </div>
+             <p className="text-sm text-gray-600 font-medium leading-relaxed">
+               Votre séance <strong>{workout.name}</strong> a été exportée au format{' '}
+               <strong>.fit</strong>. Pour l'importer dans Garmin Connect :
+             </p>
+             <ol className="space-y-2 text-sm text-gray-600 font-medium list-decimal list-inside">
+               <li>Ouvrez <strong>connect.garmin.com</strong> depuis un navigateur (l'import n'est pas possible depuis l'app mobile)</li>
+               <li>Allez dans <strong>Training / Entraînements</strong> → <strong>Workouts / Entraînements</strong></li>
+               <li>Cliquez sur <strong>Importer</strong> (icône + ou roue dentée selon la version) et sélectionnez le fichier <strong>.fit</strong> téléchargé</li>
+               <li>La séance apparaît dans vos entraînements et se synchronise automatiquement vers votre montre Garmin</li>
+             </ol>
+             <button
+               onClick={() => setShowGarminHelp(false)}
+               className="w-full bg-black text-white font-black uppercase text-xs tracking-widest py-4 rounded-2xl hover:bg-gray-800 transition-all"
+             >
+               Compris
+             </button>
+           </div>
+         </div>
+       )}
     </main>
   );
 }
