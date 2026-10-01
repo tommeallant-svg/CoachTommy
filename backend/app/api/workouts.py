@@ -174,3 +174,27 @@ def delete_workout(workout_id: int, db: Session = Depends(get_db), current_user:
     db.delete(db_workout)
     db.commit()
     return None
+
+@router.post("/{workout_id}/garmin/push", status_code=status.HTTP_204_NO_CONTENT)
+def push_workout_to_garmin(
+    workout_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+     
+    workout = db.query(Workout).get(workout_id)
+    if current_user.role != "coach":
+        query = query.filter(Workout.athlete_id == current_user.id)
+    db_workout = query.first()
+    
+    if db_workout is None:
+        raise HTTPException(status_code=404, detail="Workout not found")  
+        
+    sync_workout(
+        workout,
+        current_user
+    )
+     
+    return {
+        "status": "ok"
+}
