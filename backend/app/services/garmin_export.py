@@ -151,3 +151,8 @@ def generate_workout_fit(workout):
         os.remove(tmp_path)
 
     return data
+  
+def push_workout(workout, garmin):
+    payload = workout_to_garmin(workout)
+
+    garmin.create_workout(payload)
