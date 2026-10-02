@@ -75,7 +75,7 @@ export default function WorkoutDetailPage() {
    };
   const handlePushGarmin = async () => {
     const response = await fetchWithAuth(
-        `/api/workouts/${workoutId}/garmin/push`,
+        `/api/workouts/${id}/garmin/push`,
         {
           method: "POST",
         }
