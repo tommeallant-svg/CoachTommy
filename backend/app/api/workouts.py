@@ -176,12 +176,7 @@ def delete_workout(workout_id: int, db: Session = Depends(get_db), current_user:
     return None
 
 @router.post("/{workout_id}/garmin/push", status_code=status.HTTP_204_NO_CONTENT)
-def push_workout_to_garmin(
-    workout_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-     
+def push_workout_to_garmin(workout_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     workout = db.query(Workout).get(workout_id)
     if current_user.role != "coach":
         query = query.filter(Workout.athlete_id == current_user.id)
