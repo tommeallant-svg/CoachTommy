@@ -183,13 +183,11 @@ def push_workout_to_garmin(workout_id: int, db: Session = Depends(get_db), curre
     db_workout = query.first()
     
     if db_workout is None:
-        raise HTTPException(status_code=404, detail="Workout not found")  
-        
+        raise HTTPException(status_code=404, detail="Workout not found")
     sync_workout(
         workout,
         current_user
     )
-     
     return {
         "status": "ok"
 }
