@@ -73,6 +73,22 @@ export default function WorkoutDetailPage() {
        alert("Erreur réseau lors de l'export Garmin");
      }
    };
+  const handlePushGarmin = async () => {
+    const pushWorkoutToGarmin = async (workoutId: number) => {
+  const response = await fetchWithAuth(
+      `/api/workouts/${workoutId}/garmin/push`,
+      {
+        method: "POST",
+      }
+    );
+     
+    if (!response.ok) {
+    throw new Error("Impossible d'envoyer la séance vers Garmin");
+    }
+   
+    return response.json();
+  };
+    
   const fetchWorkout = async () => {
     try {
       const response = await fetchWithAuth(`/api/workouts/${id}`);
@@ -326,7 +342,14 @@ export default function WorkoutDetailPage() {
                     className="mt-4 md:mt-6 flex items-center gap-2 bg-black text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-800 transition-all shadow-lg active:scale-[0.98]"
                   >
                     <Watch className="w-4 h-4" />
-                    Exporter vers Garmin
+                    Telecharger fichier FIT
+                  </button>
+                  <button
+                    onClick={handlePushGarmin}
+                    className="mt-4 md:mt-6 flex items-center gap-2 bg-black text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-800 transition-all shadow-lg active:scale-[0.98]"
+                  >
+                    <Watch className="w-4 h-4" />
+                    Envoyer vers Garmin
                   </button>
                 </div>
                 
