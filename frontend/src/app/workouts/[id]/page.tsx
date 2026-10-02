@@ -74,19 +74,18 @@ export default function WorkoutDetailPage() {
      }
    };
   const handlePushGarmin = async () => {
-    const pushWorkoutToGarmin = async (workoutId: number) => {
-  const response = await fetchWithAuth(
-      `/api/workouts/${workoutId}/garmin/push`,
-      {
-        method: "POST",
+    const response = await fetchWithAuth(
+        `/api/workouts/${workoutId}/garmin/push`,
+        {
+          method: "POST",
+        }
+      );
+       
+      if (!response.ok) {
+      throw new Error("Impossible d'envoyer la séance vers Garmin");
       }
-    );
      
-    if (!response.ok) {
-    throw new Error("Impossible d'envoyer la séance vers Garmin");
-    }
-   
-    return response.json();
+      return response.json();
   };
     
   const fetchWorkout = async () => {
