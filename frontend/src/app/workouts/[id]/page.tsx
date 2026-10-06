@@ -23,6 +23,20 @@ import { Workout, WorkoutInterval, WorkoutBlock } from '@/types/workout';
 import { fetchWithAuth, getAuthUser } from '@/lib/api';
 import { Save, Edit2, Trash2 } from 'lucide-react';
 
+// Fonction utilitaire pour convertir les minutes en format mm:ss
+const formatMinutesToMMSS = (minutes: number): string => {
+  const totalSeconds = Math.floor(minutes * 60);
+  const mm = Math.floor(totalSeconds / 60);
+  const ss = totalSeconds % 60;
+  return `${mm}:${ss.toString().padStart(2, '0')}`;
+};
+
+// Convertir %VMA en allure réelle (mm:ss) en fonction de la VMA de l'athlète
+const convertVmaPercentageToPace = (vmaMinKm: number, percentage: number): string => {
+  const paceMinKm = vmaMinKm * (percentage / 100);
+  return formatMinutesToMMSS(paceMinKm);
+};
+
 export default function WorkoutDetailPage() {
   const { id } = useParams();
   const router = useRouter();
@@ -49,6 +63,7 @@ export default function WorkoutDetailPage() {
   const [showCatalogModal, setShowCatalogModal] = useState(false);
   const [catalogWorkouts, setCatalogWorkouts] = useState<any[]>([]);
   const [loadingCatalog, setLoadingCatalog] = useState(false);
+  const [athleteVma, setAthleteVma] = useState<number | null>(null);
   
   useEffect(() => {
     fetchWorkout();
@@ -112,6 +127,15 @@ export default function WorkoutDetailPage() {
         date: data.date.slice(0, 16),
         scheme: data.scheme || []
       });
+      
+      // Récupérer la VMA de l'athlète depuis le plan
+      if (data.plan_id) {
+        const planResponse = await fetchWithAuth(`/api/plans/${data.plan_id}`);
+        if (planResponse.ok) {
+          const planData = await planResponse.json();
+          setAthleteVma(planData.estimated_vma);
+        }
+      }
     } catch (error) {
       console.error('Error:', error);
     } finally {
@@ -135,20 +159,35 @@ export default function WorkoutDetailPage() {
   };
 
   const handleSelectFromCatalog = async (catalogWorkout: any) => {
-    // Convertir le scheme du catalogue au format workout
+    // Convertir le scheme du catalogue au format workout avec la VMA de l'athlète
     const scheme = catalogWorkout.scheme || [];
     
-    // Calculer la durée totale estimée à partir du scheme
+    // Calculer la durée totale estimée et convertir les %VMA en allures réelles
     let totalDuration = 0;
-    scheme.forEach((block: any) => {
+    const processedScheme = scheme.map((block: any) => {
       const repetitions = block.repetitions || 1;
-      if (block.intervals) {
-        block.intervals.forEach((interval: any) => {
+      const processedIntervals = block.intervals?.map((interval: any) => {
+        // Si l'intervalle a des %VMA, les convertir en allures réelles
+        if (interval.pace_vma_min !== undefined && interval.pace_vma_max !== undefined && athleteVma) {
+          return {
+            ...interval,
+            pace_min: convertVmaPercentageToPace(athleteVma, interval.pace_vma_min),
+            pace_max: convertVmaPercentageToPace(athleteVma, interval.pace_vma_max)
+          };
+        }
+        return interval;
+      });
+      
+      // Calculer la durée pour ce block
+      if (processedIntervals) {
+        processedIntervals.forEach((interval: any) => {
           if (interval.duration) {
             totalDuration += interval.duration * repetitions;
           }
         });
       }
+      
+      return { ...block, intervals: processedIntervals };
     });
 
     setEditFormData({
@@ -158,7 +197,7 @@ export default function WorkoutDetailPage() {
       duration_minutes: Math.round(totalDuration),
       difficulty_level: catalogWorkout.perceived_difficulty || 5,
       description: catalogWorkout.description || '',
-      scheme: scheme
+      scheme: processedScheme
     });
     setShowCatalogModal(false);
   };
@@ -281,7 +320,9 @@ export default function WorkoutDetailPage() {
                 <button
                   type="button"
                   onClick={handleOpenCatalog}
-                  className="flex items-center gap-2 bg-white text-black border border-gray-200 px-4 py-2 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-black hover:text-white transition-all shadow-sm"
+                  disabled={!athleteVma}
+                  title={!athleteVma ? "La VMA de l'athlète n'est pas disponible. Associez cette séance à un plan d'entraînement." : undefined}
+                  className="flex items-center gap-2 bg-white text-black border border-gray-200 px-4 py-2 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-black hover:text-white transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <BookOpen className="w-4 h-4" />
                   Choisir du catalogue
@@ -619,7 +660,12 @@ export default function WorkoutDetailPage() {
                 <div className="bg-yellow-400 p-2 rounded-xl">
                   <BookOpen className="w-5 h-5 text-black" />
                 </div>
-                <h3 className="text-xl font-black uppercase tracking-tight">Sélectionner une séance du catalogue</h3>
+                <div>
+                  <h3 className="text-xl font-black uppercase tracking-tight">Sélectionner une séance du catalogue</h3>
+                  {athleteVma && (
+                    <p className="text-sm text-gray-500 font-medium mt-1">VMA de l'athlète : <span className="font-black text-black">{formatMinutesToMMSS(athleteVma)}/km</span></p>
+                  )}
+                </div>
               </div>
               <button
                 onClick={() => setShowCatalogModal(false)}
