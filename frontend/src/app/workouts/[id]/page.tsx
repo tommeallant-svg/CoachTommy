@@ -32,8 +32,13 @@ const formatMinutesToMMSS = (minutes: number): string => {
 };
 
 // Convertir %VMA en allure réelle (mm:ss) en fonction de la VMA de l'athlète
+// Note: %VMA est un pourcentage de VITESSE, pas d'allure
+// VMA de 5:00/km = 12 km/h
+// 60% de VMA = 7.2 km/h = 60/7.2 = 8:20/km
+// Formule: allure = vma_min_km / (%VMA / 100)
 const convertVmaPercentageToPace = (vmaMinKm: number, percentage: number): string => {
-  const paceMinKm = vmaMinKm * (percentage / 100);
+  if (percentage <= 0) return "0:00";
+  const paceMinKm = vmaMinKm / (percentage / 100);
   return formatMinutesToMMSS(paceMinKm);
 };
 
