@@ -26,6 +26,13 @@ import {
   useSensors,
 } from '@dnd-kit/core';
 
+const formatMinutesToMMSS = (minutes: number): string => {
+  const totalSeconds = Math.floor(minutes * 60);
+  const mm = Math.floor(totalSeconds / 60);
+  const ss = totalSeconds % 60;
+  return `${mm}:${ss.toString().padStart(2, '0')}`;
+};
+
 const GOAL_TYPES = ['plaisir', 'maintien', 'mixte', 'intensité', 'trail'];
 const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 
@@ -474,7 +481,7 @@ function NewPlanPageContent() {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 ml-1">VMA Estimée (min/km)</label>
-                <span className="text-sm font-black text-black">{formData.estimated_vma.toFixed(1)} min/km</span>
+                <span className="text-sm font-black text-black">{formatMinutesToMMSS(formData.estimated_vma)}/km</span>
               </div>
               <input
                 type="range"
@@ -486,8 +493,8 @@ function NewPlanPageContent() {
                 onChange={e => setFormData({...formData, estimated_vma: parseFloat(e.target.value)})}
               />
               <div className="flex justify-between text-[10px] font-bold text-gray-400 px-1">
-                <span>Rapide (3.0)</span>
-                <span>Lent (10.0)</span>
+                <span>Rapide (3:00)</span>
+                <span>Lent (10:00)</span>
               </div>
             </div>
           </section>
