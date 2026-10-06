@@ -12,7 +12,9 @@ import {
   Calendar,
   RotateCcw,
   Dumbbell,
-  Watch
+  Watch,
+  BookOpen,
+  X
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -44,6 +46,9 @@ export default function WorkoutDetailPage() {
     scheme: [] as any[]
   });
   const [showGarminHelp, setShowGarminHelp] = useState(false);
+  const [showCatalogModal, setShowCatalogModal] = useState(false);
+  const [catalogWorkouts, setCatalogWorkouts] = useState<any[]>([]);
+  const [loadingCatalog, setLoadingCatalog] = useState(false);
   
   useEffect(() => {
     fetchWorkout();
@@ -114,6 +119,50 @@ export default function WorkoutDetailPage() {
     }
   };
 
+  const fetchCatalog = async () => {
+    setLoadingCatalog(true);
+    try {
+      const response = await fetchWithAuth('/api/catalog');
+      if (response.ok) {
+        const data = await response.json();
+        setCatalogWorkouts(data);
+      }
+    } catch (error) {
+      console.error('Error fetching catalog:', error);
+    } finally {
+      setLoadingCatalog(false);
+    }
+  };
+
+  const handleSelectFromCatalog = async (catalogWorkout: any) => {
+    // Convertir le scheme du catalogue au format workout
+    const scheme = catalogWorkout.scheme || [];
+    
+    // Calculer la durée totale estimée à partir du scheme
+    let totalDuration = 0;
+    scheme.forEach((block: any) => {
+      const repetitions = block.repetitions || 1;
+      if (block.intervals) {
+        block.intervals.forEach((interval: any) => {
+          if (interval.duration) {
+            totalDuration += interval.duration * repetitions;
+          }
+        });
+      }
+    });
+
+    setEditFormData({
+      ...editFormData,
+      name: catalogWorkout.name,
+      workout_type: catalogWorkout.workout_type,
+      duration_minutes: Math.round(totalDuration),
+      difficulty_level: catalogWorkout.perceived_difficulty || 5,
+      description: catalogWorkout.description || '',
+      scheme: scheme
+    });
+    setShowCatalogModal(false);
+  };
+
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsValidating(true);
@@ -136,6 +185,13 @@ export default function WorkoutDetailPage() {
     } finally {
       setIsValidating(false);
     }
+  };
+
+  const handleOpenCatalog = async () => {
+    if (catalogWorkouts.length === 0) {
+      await fetchCatalog();
+    }
+    setShowCatalogModal(true);
   };
 
   const handleDelete = async () => {
@@ -221,6 +277,16 @@ export default function WorkoutDetailPage() {
           <section className="bg-white rounded-[2rem] md:rounded-[3rem] p-6 md:p-16 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.06)] border border-gray-50">
             <h2 className="text-2xl md:text-4xl font-black text-black uppercase tracking-tighter mb-6 md:mb-12">Modifier la séance</h2>
             <form onSubmit={handleUpdate} className="space-y-6 md:space-y-8">
+              <div className="flex justify-end mb-4">
+                <button
+                  type="button"
+                  onClick={handleOpenCatalog}
+                  className="flex items-center gap-2 bg-white text-black border border-gray-200 px-4 py-2 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-black hover:text-white transition-all shadow-sm"
+                >
+                  <BookOpen className="w-4 h-4" />
+                  Choisir du catalogue
+                </button>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 ml-1">Nom de la séance</label>
@@ -538,6 +604,72 @@ export default function WorkoutDetailPage() {
           </>
         )}
       </div>
+      {/* Catalog Modal */}
+      {showCatalogModal && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => setShowCatalogModal(false)}
+        >
+          <div
+            className="bg-white rounded-[2.5rem] p-8 max-w-2xl w-full shadow-2xl border border-gray-100 max-h-[90vh] overflow-y-auto"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="bg-yellow-400 p-2 rounded-xl">
+                  <BookOpen className="w-5 h-5 text-black" />
+                </div>
+                <h3 className="text-xl font-black uppercase tracking-tight">Sélectionner une séance du catalogue</h3>
+              </div>
+              <button
+                onClick={() => setShowCatalogModal(false)}
+                className="p-2 text-gray-400 hover:text-black hover:bg-gray-100 rounded-xl transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            {loadingCatalog ? (
+              <div className="text-center py-12 font-bold text-gray-400">Chargement du catalogue...</div>
+            ) : catalogWorkouts.length === 0 ? (
+              <div className="text-center py-12 font-bold text-gray-400">Aucune séance dans le catalogue</div>
+            ) : (
+              <div className="grid grid-cols-1 gap-4">
+                {catalogWorkouts.map((catalogWorkout) => (
+                  <button
+                    key={catalogWorkout.id}
+                    onClick={() => handleSelectFromCatalog(catalogWorkout)}
+                    className="w-full bg-gray-50 hover:bg-black hover:text-white border border-gray-100 rounded-2xl p-6 text-left transition-all group"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-lg font-black uppercase tracking-tight group-hover:text-yellow-400">{catalogWorkout.name}</h4>
+                        <div className="flex items-center gap-4 mt-2 text-sm font-medium text-gray-500 group-hover:text-gray-300">
+                          <span className="text-[10px] font-black uppercase tracking-widest">{catalogWorkout.workout_type}</span>
+                          <span className="text-[10px] font-black uppercase tracking-widest">Difficulté : {catalogWorkout.perceived_difficulty}/10</span>
+                        </div>
+                      </div>
+                      <div className="text-gray-400 group-hover:text-white">
+                        <ChevronLeft className="w-5 h-5 transform -rotate-180" />
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+            
+            <div className="mt-8 flex justify-end">
+              <button
+                onClick={() => setShowCatalogModal(false)}
+                className="px-6 py-3 bg-gray-100 text-gray-600 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-200 transition-all"
+              >
+                Annuler
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showGarminHelp && (
          <div
            className="fixed inset-0 bg-black/40 backdrop-blur-md z-50 flex items-center justify-center p-4"
