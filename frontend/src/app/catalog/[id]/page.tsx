@@ -19,6 +19,14 @@ import Link from 'next/link';
 import { fetchWithAuth, getAuthUser } from '@/lib/api';
 import { CatalogWorkout, CatalogInterval, CatalogBlock } from '@/types/workout';
 
+const formatMinutesToMMSS = (minutes: number | undefined): string => {
+  if (minutes === undefined) return '';
+  const totalSeconds = Math.floor(minutes * 60);
+  const mm = Math.floor(totalSeconds / 60);
+  const ss = totalSeconds % 60;
+  return `${mm}:${ss.toString().padStart(2, '0')}`;
+};
+
 export default function CatalogEditPage() {
   const { id } = useParams();
   const router = useRouter();
@@ -323,6 +331,11 @@ export default function CatalogEditPage() {
                           >
                             {interval.duration !== undefined ? 'MIN' : 'M'}
                           </button>
+                          {interval.duration !== undefined && (
+                            <span className="text-[10px] font-bold text-gray-500 whitespace-nowrap">
+                              ({formatMinutesToMMSS(interval.duration)})
+                            </span>
+                          )}
                         </div>
                       </div>
 
