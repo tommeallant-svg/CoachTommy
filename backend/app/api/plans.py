@@ -23,6 +23,18 @@ def get_current_plan(athlete_id: Optional[int] = None, db: Session = Depends(get
     
     return db.query(Plan).filter(Plan.athlete_id == target_athlete_id, Plan.is_archived == False).first()
 
+@router.get("/{plan_id}", response_model=PlanResponse)
+def get_plan(plan_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    query = db.query(Plan).filter(Plan.id == plan_id)
+    if current_user.role != "coach":
+        query = query.filter(Plan.athlete_id == current_user.id)
+    
+    db_plan = query.first()
+    if not db_plan:
+        raise HTTPException(status_code=404, detail="Plan non trouvé")
+    return db_plan
+
+
 @router.post("", response_model=PlanResponse)
 def create_plan(plan_in: PlanCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     target_athlete_id = current_user.id
