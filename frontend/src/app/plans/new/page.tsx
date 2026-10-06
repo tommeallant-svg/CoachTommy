@@ -485,16 +485,16 @@ function NewPlanPageContent() {
               </div>
               <input
                 type="range"
-                min="3"
-                max="10"
+                min="2.5"
+                max="6"
                 step="0.1"
                 className="w-full h-2 bg-gray-100 rounded-lg appearance-none cursor-pointer accent-black"
                 value={formData.estimated_vma}
                 onChange={e => setFormData({...formData, estimated_vma: parseFloat(e.target.value)})}
               />
               <div className="flex justify-between text-[10px] font-bold text-gray-400 px-1">
-                <span>Rapide (3:00)</span>
-                <span>Lent (10:00)</span>
+                <span>Rapide (2:30)</span>
+                <span>Lent (6:00)</span>
               </div>
             </div>
           </section>
