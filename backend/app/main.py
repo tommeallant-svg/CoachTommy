@@ -2,7 +2,7 @@ import time
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .database import engine, Base
-from .api import workouts, auth, plans, catalog, coach
+from .api import workouts, auth, plans, catalog, coach, garmin
 from .models import user, workout, plan, catalog as catalog_model
 
 # Create tables with retry logic
@@ -29,6 +29,7 @@ app.include_router(workouts.router, prefix="/api")
 app.include_router(plans.router, prefix="/api")
 app.include_router(catalog.router, prefix="/api")
 app.include_router(coach.router, prefix="/api")
+app.include_router(garmin.router, prefix="/api")
 
 @app.get("/")
 def read_root():

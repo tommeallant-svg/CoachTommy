@@ -152,7 +152,15 @@ def generate_workout_fit(workout):
 
     return data
   
-def push_workout(workout, garmin):
-    payload = workout_to_garmin(workout)
+from .garmin_mapper import GarminMapper
 
-    garmin.create_workout(payload)
+def push_workout(workout, garmin_client):
+    """
+    Push a workout to Garmin Connect using the provided client.
+    
+    Args:
+        workout: Workout SQLAlchemy model instance
+        garmin_client: Authenticated Garmin client instance
+    """
+    payload = GarminMapper.workout_to_garmin(workout)
+    garmin_client.create_workout(payload)

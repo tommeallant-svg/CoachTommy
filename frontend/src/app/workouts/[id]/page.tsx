@@ -14,7 +14,10 @@ import {
   Dumbbell,
   Watch,
   BookOpen,
-  X
+  X,
+  Link2,
+  Unlink,
+  Loader2
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -22,6 +25,7 @@ import Link from 'next/link';
 import { Workout, WorkoutInterval, WorkoutBlock } from '@/types/workout';
 import { fetchWithAuth, getAuthUser } from '@/lib/api';
 import { Save, Edit2, Trash2 } from 'lucide-react';
+import GarminAuthModal from '@/components/GarminAuthModal';
 
 // Fonction utilitaire pour convertir les minutes en format mm:ss
 const formatMinutesToMMSS = (minutes: number): string => {
@@ -69,11 +73,34 @@ export default function WorkoutDetailPage() {
   const [catalogWorkouts, setCatalogWorkouts] = useState<any[]>([]);
   const [loadingCatalog, setLoadingCatalog] = useState(false);
   const [athleteVma, setAthleteVma] = useState<number | null>(null);
+  const [showGarminAuthModal, setShowGarminAuthModal] = useState(false);
+  const [garminConnected, setGarminConnected] = useState(false);
+  const [garminEmail, setGarminEmail] = useState<string | null>(null);
+  const [isCheckingGarmin, setIsCheckingGarmin] = useState(false);
+  const [pushError, setPushError] = useState<string | null>(null);
+  const [pushSuccess, setPushSuccess] = useState(false);
   
   useEffect(() => {
     fetchWorkout();
+    checkGarminStatus();
   }, [id]);
-  
+
+  const checkGarminStatus = async () => {
+    setIsCheckingGarmin(true);
+    try {
+      const response = await fetchWithAuth('/api/auth/garmin/status');
+      if (response.ok) {
+        const data = await response.json();
+        setGarminConnected(data.is_connected);
+        setGarminEmail(data.garmin_email || null);
+      }
+    } catch (err) {
+      console.error('Failed to check Garmin status:', err);
+    } finally {
+      setIsCheckingGarmin(false);
+    }
+  };
+
   const handleGarminExport = async () => {
      try {
        const res = await fetchWithAuth(`/api/workouts/${id}/garmin`);
@@ -98,21 +125,48 @@ export default function WorkoutDetailPage() {
        alert("Erreur réseau lors de l'export Garmin");
      }
    };
+
   const handlePushGarmin = async () => {
-    const response = await fetchWithAuth(
+    // Check if connected to Garmin first
+    if (!garminConnected) {
+      setShowGarminAuthModal(true);
+      return;
+    }
+
+    setPushError(null);
+    setPushSuccess(false);
+    
+    try {
+      setIsCheckingGarmin(true);
+      const response = await fetchWithAuth(
         `/api/workouts/${id}/garmin/push`,
         {
           method: "POST",
         }
       );
-       
+      
       if (!response.ok) {
-      throw new Error("Impossible d'envoyer la séance vers Garmin");
+        const err = await response.json().catch(() => null);
+        setPushError(err?.detail || 'Impossible d\'envoyer la séance vers Garmin');
+        return;
       }
-     
-      return response.json();
+      
+      setPushSuccess(true);
+      setTimeout(() => setPushSuccess(false), 5000);
+      
+    } catch (err) {
+      setPushError('Erreur réseau lors de l\'envoi vers Garmin');
+      console.error('Garmin push failed:', err);
+    } finally {
+      setIsCheckingGarmin(false);
+    }
   };
-    
+
+  const handleGarminAuthSuccess = () => {
+    // Refresh Garmin connection status after successful auth
+    checkGarminStatus();
+  };
+
   const fetchWorkout = async () => {
     try {
       const response = await fetchWithAuth(`/api/workouts/${id}`);
@@ -448,20 +502,44 @@ export default function WorkoutDetailPage() {
                       {format(parseISO(workout.date), 'EEEE d MMMM', { locale: fr })}
                     </div>
                   </div>
-                  <button
-                    onClick={handleGarminExport}
-                    className="mt-4 md:mt-6 flex items-center gap-2 bg-black text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-800 transition-all shadow-lg active:scale-[0.98]"
-                  >
-                    <Watch className="w-4 h-4" />
-                    Telecharger fichier FIT
-                  </button>
-                  <button
-                    onClick={handlePushGarmin}
-                    className="mt-4 md:mt-6 flex items-center gap-2 bg-black text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-800 transition-all shadow-lg active:scale-[0.98]"
-                  >
-                    <Watch className="w-4 h-4" />
-                    Envoyer vers Garmin
-                  </button>
+                  <div className="flex gap-2 mt-4 md:mt-6">
+                    <button
+                      onClick={handleGarminExport}
+                      disabled={isCheckingGarmin}
+                      className="flex items-center gap-2 bg-black text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-800 transition-all shadow-lg active:scale-[0.98] disabled:opacity-50"
+                    >
+                      <Watch className="w-4 h-4" />
+                      Telecharger fichier FIT
+                    </button>
+                    <button
+                      onClick={handlePushGarmin}
+                      disabled={isCheckingGarmin}
+                      className="flex items-center gap-2 bg-black text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-800 transition-all shadow-lg active:scale-[0.98] disabled:opacity-50"
+                    >
+                      {isCheckingGarmin ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Watch className="w-4 h-4" />
+                      )}
+                      {garminConnected ? 'Envoyer vers Garmin' : 'Connecter à Garmin'}
+                    </button>
+                  </div>
+                  {pushError && (
+                    <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl">
+                      <span className="text-sm font-medium text-red-600">{pushError}</span>
+                    </div>
+                  )}
+                  {pushSuccess && (
+                    <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-xl">
+                      <span className="text-sm font-medium text-green-600">Séance envoyée avec succès vers Garmin !</span>
+                    </div>
+                  )}
+                  {garminConnected && garminEmail && (
+                    <div className="mt-4 flex items-center gap-2 text-sm text-gray-500 font-medium">
+                      <Link2 className="w-4 h-4 text-green-500" />
+                      Connecté à: <span className="font-black text-black">{garminEmail}</span>
+                    </div>
+                  )}
                 </div>
                 
                 {/* Statistiques : bandeau compact sur mobile, cartes larges sur desktop */}
@@ -720,6 +798,15 @@ export default function WorkoutDetailPage() {
           </div>
         </div>
       )}
+
+      {/* Garmin Auth Modal */}
+      <GarminAuthModal
+        isOpen={showGarminAuthModal}
+        onClose={() => setShowGarminAuthModal(false)}
+        onSuccess={handleGarminAuthSuccess}
+        currentEmail={garminEmail || ''}
+        isConnected={garminConnected}
+      />
 
       {showGarminHelp && (
          <div

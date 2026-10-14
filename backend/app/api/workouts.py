@@ -175,19 +175,47 @@ def delete_workout(workout_id: int, db: Session = Depends(get_db), current_user:
     db.commit()
     return None
 
-@router.post("/{workout_id}/garmin/push", status_code=status.HTTP_204_NO_CONTENT)
-def push_workout_to_garmin(workout_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    workout = db.query(Workout).get(workout_id)
+from ..services.garmin_export import push_workout
+from ..services.garmin_client import GarminClient
+
+@router.post("/{workout_id}/garmin/push", status_code=status.HTTP_200_OK)
+async def push_workout_to_garmin(workout_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """
+    Push a workout to the athlete's Garmin Connect account.
+    Requires the athlete to be connected to Garmin (tokens stored in database).
+    """
+    query = db.query(Workout).filter(Workout.id == workout_id)
     if current_user.role != "coach":
         query = query.filter(Workout.athlete_id == current_user.id)
+    
     db_workout = query.first()
     
     if db_workout is None:
         raise HTTPException(status_code=404, detail="Workout not found")
-    sync_workout(
-        workout,
-        current_user
-    )
-    return {
-        "status": "ok"
-}
+    
+    # Check if user has Garmin tokens
+    if not current_user.garmin_token or not current_user.garmin_email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User is not connected to Garmin Connect. Please connect via /auth/garmin/login first."
+        )
+    
+    try:
+        # Initialize Garmin client with stored tokens
+        token_dict = {
+            "access_token": current_user.garmin_token,
+            "refresh_token": current_user.garmin_refresh_token,
+            "token_type": "Bearer"
+        }
+        garmin_client = GarminClient(token_dict=token_dict)
+        
+        # Push workout to Garmin
+        push_workout(db_workout, garmin_client)
+        
+        return {"status": "ok", "message": "Workout pushed to Garmin Connect successfully"}
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to push workout to Garmin Connect: {str(e)}"
+        )
