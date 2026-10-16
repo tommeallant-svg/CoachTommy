@@ -104,12 +104,12 @@ DEFAULT_ASSIGNMENTS = {
 
 # Rétro-planning : phases selon la distance (en semaines avant la course)
 PHASES_BY_DISTANCE = {
-    "5km": {"affutage": 1, "specifique": [2, 4], "montee": [5, 8], "non_specifique": 9},
-    "10km": {"affutage": 1, "specifique": [2, 4], "montee": [5, 8], "non_specifique": 9},
-    "21km": {"affutage": [1, 2], "specifique": [3, 5], "montee": [6, 13], "non_specifique": 14},
-    "42km": {"affutage": [1, 3], "specifique": [4, 6], "montee": [7, 14], "non_specifique": 15},
-    "trail_small": {"affutage": 1, "specifique": [2, 4], "montee": [5, 12], "non_specifique": 13},
-    "trail_large": {"affutage": [1, 2], "specifique": [3, 5], "montee": [6, 13], "non_specifique": 14},
+    "5km": {"affutage": [1, 2], "specifique": [3, 5], "montee": [6, 9], "non_specifique": 10},
+    "10km": {"affutage": [1, 2], "specifique": [3, 5], "montee": [6, 9], "non_specifique": 10},
+    "21km": {"affutage": [1, 3], "specifique": [4, 6], "montee": [7, 14], "non_specifique": 15},
+    "42km": {"affutage": [1, 4], "specifique": [5, 7], "montee": [8, 15], "non_specifique": 16},
+    "trail_small": {"affutage": [1, 2], "specifique": [3, 5], "montee": [6, 13], "non_specifique": 14},
+    "trail_large": {"affutage": [1, 3], "specifique": [4, 6], "montee": [7, 14], "non_specifique": 15},
 }
 
 # Mots-clés (sans accents, minuscules) pour orienter le choix des séances de
