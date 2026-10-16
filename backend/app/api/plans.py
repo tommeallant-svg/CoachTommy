@@ -70,9 +70,12 @@ def create_plan(plan_in: PlanCreate, db: Session = Depends(get_db), current_user
         db.commit()
         db.refresh(db_plan)
         return db_plan
-    except Exception as e:
+    except ValueError as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Erreur lors de la génération du plan : {str(e)}")
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception as e500:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Erreur lors de la génération du plan : {str(e500)}")
 
 @router.post("/{plan_id}/archive", response_model=PlanResponse)
 def archive_plan(plan_id: int, archive_data: PlanArchive, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
