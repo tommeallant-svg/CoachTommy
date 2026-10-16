@@ -125,12 +125,12 @@ PHASE_KEYWORDS = {
 
 # Intensité de la course (échelle de difficulté des séances)
 RACE_INTENSITY = {
-    "trail_large": 8,
-    "trail_small": 10,
-    "42km": 10,
-    "21km": 15,
-    "10km": 20,
-    "5km": 30,
+    "trail_large": 5,
+    "trail_small": 6,
+    "42km": 7,
+    "21km": 8,
+    "10km": 9,
+    "5km": 10,
 }
 
 # %VMA indicatif de l'allure de course selon la distance (estimation)
@@ -353,7 +353,7 @@ class PlanGenerator:
                 "pace": pace,
                 "duration": duration,
                 "difficulty": difficulty,
-                "load": _load_of(duration, difficulty),
+                "load": 2*_load_of(duration, difficulty),
             }
         return self._race
 
