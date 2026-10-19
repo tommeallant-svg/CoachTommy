@@ -42,8 +42,14 @@ Principe : on part de la course et on remonte le temps.
    la séance dont la charge est la plus proche de la cible de la séance.
    Les séances endurance/libre absorbent l'écart restant du budget.
 
+9) Schémas du catalogue : si un interval est défini par DISTANCE (sans
+   durée), sa durée est calculée comme allure × distance — l'allure étant
+   celle de l'interval (pace_min/pace_max en min/km) ou dérivée du %VMA
+   (pace_vma) à partir de la VMA de l'athlète. La durée calculée est
+   écrite dans le schéma généré (le catalogue n'est jamais modifié).
+
 Hérité de la v2 : validation des entrées (ValueError → 422), choix du
-catalogue par phase (mots-clés + rotation anti-répétition), jours choisis
+catalogue par phase (mots-clés + anti-répétition), jours choisis
 sans wrap, séance du jour de course, aucune séance la veille de la course.
 """
 
@@ -111,12 +117,12 @@ DEFAULT_ASSIGNMENTS = {
 
 # Rétro-planning : phases selon la distance (en semaines avant la course)
 PHASES_BY_DISTANCE = {
-    "5km": {"affutage": 1, "specifique": [2, 4], "montee": [5, 8], "non_specifique": 9},
-    "10km": {"affutage": 1, "specifique": [2, 4], "montee": [5, 8], "non_specifique": 9},
-    "21km": {"affutage": [1, 2], "specifique": [3, 5], "montee": [6, 13], "non_specifique": 14},
-    "42km": {"affutage": [1, 3], "specifique": [4, 6], "montee": [7, 14], "non_specifique": 15},
-    "trail_small": {"affutage": 1, "specifique": [2, 4], "montee": [5, 12], "non_specifique": 13},
-    "trail_large": {"affutage": [1, 2], "specifique": [3, 5], "montee": [6, 13], "non_specifique": 14},
+    "5km": {"affutage": [1, 2], "specifique": [3, 5], "montee": [6, 9], "non_specifique": 10},
+    "10km": {"affutage": [1, 2], "specifique": [3, 5], "montee": [6, 9], "non_specifique": 10},
+    "21km": {"affutage": [1, 3], "specifique": [4, 6], "montee": [7, 14], "non_specifique": 15},
+    "42km": {"affutage": [1, 4], "specifique": [5, 7], "montee": [8, 15], "non_specifique": 16},
+    "trail_small": {"affutage": [1, 2], "specifique": [3, 5], "montee": [6, 13], "non_specifique": 14},
+    "trail_large": {"affutage": [1, 3], "specifique": [4, 6], "montee": [7, 14], "non_specifique": 15},
 }
 
 # Mots-clés (sans accents, minuscules) pour orienter le choix des séances de
@@ -155,7 +161,7 @@ RACE_WEEK_CHARGE_RATIO = 2.0
 # sa semaine de course (et toute la courbe du plan) est chargée.
 # Référence 1.0 = 4 séances/semaine ; ±10 % par séance d'écart.
 TRAINING_FREQUENCY_FACTOR = {
-    1: 0.7, 2: 0.8, 3: 0.9, 4: 1.0, 5: 1.1, 6: 1.2, 7: 1.3,
+    1: 0.5, 2: 0.75, 3: 1, 4: 1.25, 5: 1.5, 6: 1.75, 7: 2.0,
 }
 
 # Semaine PIC (dernière semaine avant l'affûtage) = 1.5 × charge semaine course
@@ -224,6 +230,23 @@ def _load_of(duration, difficulty):
 
 def _clamp(value, low, high):
     return max(low, min(high, value))
+
+
+def _parse_pace(pace):
+    """Convertit une allure en minutes décimales/km : "4:30" → 4.5 (accepte aussi un nombre)."""
+    if pace is None or pace == "":
+        return None
+    if isinstance(pace, (int, float)):
+        return float(pace)
+    try:
+        parts = str(pace).strip().split(":")
+        if len(parts) == 2:
+            return int(parts[0]) + int(parts[1]) / 60.0
+        if len(parts) == 3:
+            return int(parts[0]) * 60 + int(parts[1]) + int(parts[2]) / 60.0
+    except (ValueError, IndexError):
+        return None
+    return None
 
 
 def get_distance_key(distance, goal_type):
@@ -652,7 +675,7 @@ class PlanGenerator:
             workout_type="Endurance",
             category="Endurance",
             duration_minutes=duration,
-            difficulty_level=3,
+            difficulty_level=2,
             date=date,
             scheme=scheme,
             athlete_id=self.plan.athlete_id,
@@ -660,7 +683,7 @@ class PlanGenerator:
                 "Le footing de la semaine, un moment pour faire du bien à votre corps, "
                 "prenez le temps de vider votre tête."
             ),
-            estimated_load=_load_of(duration, 3),
+            estimated_load=_load_of(duration, 2),
         )
 
     def _create_libre(self, date, duration):
@@ -675,7 +698,7 @@ class PlanGenerator:
             workout_type="Libre",
             category="Libre",
             duration_minutes=duration,
-            difficulty_level=2,
+            difficulty_level=1,
             date=date,
             scheme=scheme,
             athlete_id=self.plan.athlete_id,
@@ -684,7 +707,7 @@ class PlanGenerator:
                 "Essayez tout de même de ne pas générer trop de fatigue. "
                 "Excellente occasion pour courir avec des amis."
             ),
-            estimated_load=_load_of(duration, 2),
+            estimated_load=_load_of(duration, 1),
         )
 
     def _create_fractionne(self, date, phase, target_load):
@@ -881,19 +904,61 @@ class PlanGenerator:
         return best
 
     def _scheme_duration(self, scheme):
-        """Durée totale d'un schéma (en tenant compte des répétitions)."""
+        """
+        Durée totale d'un schéma (en tenant compte des répétitions). Les
+        intervals définis par distance (sans durée) sont convertis en durée
+        via allure × distance.
+        """
         total = 0
         for block in scheme or []:
             if not isinstance(block, dict):
                 continue
             repetitions = block.get("repetitions", 1) or 1
             block_time = sum(
-                interval.get("duration", 0) or 0
+                self._interval_duration(interval)
                 for interval in block.get("intervals", [])
                 if isinstance(interval, dict)
             )
             total += repetitions * block_time
         return int(round(total))
+
+    def _interval_duration(self, interval):
+        """
+        Durée d'un interval en minutes : durée explicite si présente, sinon
+        distance × allure (allure de l'interval, calculée selon la VMA).
+        """
+        if not isinstance(interval, dict):
+            return 0.0
+        if interval.get("duration"):
+            return float(interval["duration"])
+        distance = interval.get("distance")
+        if not distance:
+            return 0.0
+        return float(distance) * self._interval_pace_decimal(interval)
+
+    def _interval_pace_decimal(self, interval):
+        """
+        Allure d'un interval en minutes décimales / km :
+        - moyenne des allures cibles (pace_min/pace_max, format "m:ss"),
+        - sinon dérivée du %VMA (pace_vma / pace_vma_min / pace_vma_max)
+          à partir de la VMA estimée de l'athlète,
+        - sinon allure d'endurance fondamentale (70 % VMA) par défaut.
+        """
+        paces = [
+            pace
+            for pace in (_parse_pace(interval.get(k)) for k in ("pace_min", "pace_max"))
+            if pace is not None
+        ]
+        if paces:
+            return sum(paces) / len(paces)
+        for key in ("pace_vma_min", "pace_vma_max", "pace_vma"):
+            percent = interval.get(key)
+            if percent and percent > 0 and self.plan.estimated_vma:
+                return self.plan.estimated_vma / (percent / 100.0)
+        # Pas d'allure renseignée : allure d'endurance fondamentale par défaut
+        if self.plan.estimated_vma:
+            return self.plan.estimated_vma / 0.70
+        return 0.0
 
     def _convert_scheme(self, scheme):
         """Convertit les allures %VMA du catalogue en min/km (comportement v1 conservé)."""
@@ -914,6 +979,13 @@ class PlanGenerator:
                     # Support legacy
                     new_interval["pace_min"] = self.format_pace_vma(new_interval["pace_vma"])
                     new_interval["pace_max"] = new_interval["pace_min"]
+                # Interval défini par distance : écrire la durée calculée
+                # (allure × distance) dans le schéma généré
+                if not new_interval.get("duration") and new_interval.get("distance"):
+                    new_interval["duration"] = round(
+                        float(new_interval["distance"]) * self._interval_pace_decimal(new_interval),
+                        1,
+                    )
                 new_block["intervals"].append(new_interval)
             new_scheme.append(new_block)
         return new_scheme
