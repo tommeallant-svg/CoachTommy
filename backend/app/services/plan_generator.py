@@ -8,8 +8,12 @@ Principe : on part de la course et on remonte le temps.
    trail long = 5, trail court = 6, marathon = 7, semi = 8, 10 km = 9, 5 km = 10.
 
 2) Charge de la semaine de course :
-   C_course = RACE_WEEK_CHARGE_RATIO × L_course
-   (la course + quelques séances légères autour).
+   C_course = RACE_WEEK_CHARGE_RATIO × L_course_eff, où
+   L_course_eff = L_course × facteur de fréquence (TRAINING_FREQUENCY_FACTOR) :
+   plus l'athlète s'entraîne par semaine, plus sa capacité de charge — et donc
+   sa semaine de course — est élevée. Toute la courbe de rétro-planning
+   (C_course, pic, affûtage, plancher de départ) est ancrée sur L_course_eff.
+   La séance course elle-même garde sa charge réelle L_course.
 
 3) Semaine PIC = dernière semaine avant l'affûtage (dernière semaine
    spécifique) : C_pic = PEAK_MULTIPLIER × C_course = 1.5 × C_course.
@@ -30,10 +34,13 @@ Principe : on part de la course et on remonte le temps.
    Sa durée est recalculée chaque semaine → elle suit la courbe de charge.
    En semaine de course, pas de sortie longue (elle devient Endurance).
 
-8) Les autres séances se partagent le budget restant au prorata de leur
-   charge nominale (Endurance 45 min, Libre 40 min, Fractionné = durée du
-   catalogue). Le fractionné du catalogue est ajusté en répétitions pour
-   viser sa durée allouée.
+8) Fractionnés du catalogue : JAMAIS modifiés (ni répétitions, ni durées).
+   Le budget de chaque fractionné est calculé après avoir pris en compte la
+   charge réelle de la sortie longue (et de la course en semaine de course) ;
+   on sélectionne alors, dans le catalogue pré-filtré par PHASE_KEYWORDS
+   selon la phase (VMA en non-spécifique/montée, allure/seuil en spécifique),
+   la séance dont la charge est la plus proche de la cible de la séance.
+   Les séances endurance/libre absorbent l'écart restant du budget.
 
 Hérité de la v2 : validation des entrées (ValueError → 422), choix du
 catalogue par phase (mots-clés + rotation anti-répétition), jours choisis
@@ -104,12 +111,12 @@ DEFAULT_ASSIGNMENTS = {
 
 # Rétro-planning : phases selon la distance (en semaines avant la course)
 PHASES_BY_DISTANCE = {
-    "5km": {"affutage": [1, 2], "specifique": [3, 5], "montee": [6, 9], "non_specifique": 10},
-    "10km": {"affutage": [1, 2], "specifique": [3, 5], "montee": [6, 9], "non_specifique": 10},
-    "21km": {"affutage": [1, 3], "specifique": [4, 6], "montee": [7, 14], "non_specifique": 15},
-    "42km": {"affutage": [1, 4], "specifique": [5, 7], "montee": [8, 15], "non_specifique": 16},
-    "trail_small": {"affutage": [1, 2], "specifique": [3, 5], "montee": [6, 13], "non_specifique": 14},
-    "trail_large": {"affutage": [1, 3], "specifique": [4, 6], "montee": [7, 14], "non_specifique": 15},
+    "5km": {"affutage": 1, "specifique": [2, 4], "montee": [5, 8], "non_specifique": 9},
+    "10km": {"affutage": 1, "specifique": [2, 4], "montee": [5, 8], "non_specifique": 9},
+    "21km": {"affutage": [1, 2], "specifique": [3, 5], "montee": [6, 13], "non_specifique": 14},
+    "42km": {"affutage": [1, 3], "specifique": [4, 6], "montee": [7, 14], "non_specifique": 15},
+    "trail_small": {"affutage": 1, "specifique": [2, 4], "montee": [5, 12], "non_specifique": 13},
+    "trail_large": {"affutage": [1, 2], "specifique": [3, 5], "montee": [6, 13], "non_specifique": 14},
 }
 
 # Mots-clés (sans accents, minuscules) pour orienter le choix des séances de
@@ -139,9 +146,17 @@ RACE_PACE_VMA = {
     "trail_small": 70, "trail_large": 65,
 }
 
-# Charge de la semaine de course = ratio × charge de la séance course
+# Charge de la semaine de course = ratio × charge effective de la séance course
 # (la course + séances légères d'activation autour)
 RACE_WEEK_CHARGE_RATIO = 2.0
+
+# Facteur de fréquence d'entraînement appliqué à L_course : plus l'athlète
+# s'entraîne par semaine, plus sa capacité de charge est élevée — et donc plus
+# sa semaine de course (et toute la courbe du plan) est chargée.
+# Référence 1.0 = 4 séances/semaine ; ±10 % par séance d'écart.
+TRAINING_FREQUENCY_FACTOR = {
+    1: 0.7, 2: 0.8, 3: 0.9, 4: 1.0, 5: 1.1, 6: 1.2, 7: 1.3,
+}
 
 # Semaine PIC (dernière semaine avant l'affûtage) = 1.5 × charge semaine course
 PEAK_MULTIPLIER = 1.5
@@ -167,11 +182,17 @@ LONG_RUN_DIFFICULTY = 5  # charge sortie longue = durée × 2
 LONG_RUN_FLOORS = {"5km": 40, "10km": 50, "21km": 60, "42km": 70, "trail_small": 60, "trail_large": 70}
 LONG_RUN_CAPS = {"5km": 90, "10km": 105, "21km": 140, "42km": 180, "trail_small": 150, "trail_large": 165}
 
-# Bornes d'ajustement du fractionné du catalogue (facteur sur les répétitions)
-FRACTIONNE_SCALE_RANGE = (0.6, 1.6)
+# Séance 30/30 par défaut si le catalogue est vide (contenu fixe, non modifié)
+DEFAULT_FRACTIONNE = (50, 7)  # (durée, difficulté)
 
-# Séance 30/30 par défaut si le catalogue est vide
-DEFAULT_FRACTIONNE = (50, 7)  # (durée nominale, difficulté)
+# Anti-répétition du fractionné : si la séance la plus proche de la cible est
+# celle utilisée la fois précédente, on lui préfère une alternative dont
+# l'écart de charge reste dans ce facteur (1.05 = ±5 % de tolérance).
+ANTI_REPEAT_TOLERANCE = 1.05
+
+# Si le contenu minimum d'une semaine dépasse ce facteur × le budget, on
+# retire les séances les moins prioritaires (Libre puis Endurance).
+BUDGET_OVERRUN_TOLERANCE = 1.25
 
 
 # ---------------------------------------------------------------------------
@@ -225,6 +246,15 @@ def long_run_ratio(sessions_per_week):
     return 0.40 if sessions_per_week <= 3 else 0.30
 
 
+def training_frequency_factor(sessions_per_week):
+    """
+    Facteur de fréquence appliqué à L_course : un athlète qui s'entraîne
+    davantage absorbe une charge plus élevée. Référence 1.0 pour 4 séances/
+    semaine, ±10 % par séance d'écart.
+    """
+    return TRAINING_FREQUENCY_FACTOR.get(int(sessions_per_week), 1.0)
+
+
 def normalize_goal_type(goal_type):
     """Valide et normalise le goal_type (accents et casse tolérés) → ValueError si inconnu."""
     if not goal_type or not isinstance(goal_type, str):
@@ -272,8 +302,7 @@ class PlanGenerator:
         self.plan = plan_data
         self.catalog = catalog_workouts or []
         self.workouts = []
-        # Rotation anti-répétition pour les séances de fractionné
-        self._frac_counter = 0
+        # Anti-répétition pour les séances de fractionné
         self._last_frac_id = None
         # Cache des infos de la séance course
         self._race = None
@@ -348,12 +377,17 @@ class PlanGenerator:
             pace_decimal = self.plan.estimated_vma / (vma_percent / 100.0)
             duration = int(round(distance * pace_decimal))
             difficulty = RACE_INTENSITY.get(self.dist_key, 8)
+            load = _load_of(duration, difficulty)
             self._race = {
                 "distance": distance,
                 "pace": pace,
                 "duration": duration,
                 "difficulty": difficulty,
-                "load": 2*_load_of(duration, difficulty),
+                # Charge réelle de la séance course (ne dépend pas de la fréquence)
+                "load": load,
+                # Charge effective : ancre le rétro-planning en tenant compte du
+                # nombre de séances/semaine (un athlète plus entraîné absorbe plus)
+                "anchor_load": 2 * load * training_frequency_factor(self.plan.sessions_per_week),
             }
         return self._race
 
@@ -361,7 +395,8 @@ class PlanGenerator:
         """
         Charge cible d'une semaine, calculée en rétro-planning depuis la course :
 
-        - semaine de course           : C_course = RACE_WEEK_CHARGE_RATIO × L_course
+        - semaine de course           : C_course = RACE_WEEK_CHARGE_RATIO × L_course_eff
+                                         (L_course_eff = L_course × facteur de fréquence)
         - affûtage                    : rampe C_course → pic (1.5 × C_course)
         - semaine pic                 : 1.5 × C_course (dernière avant affûtage)
         - avant le pic                : décroissance linéaire en remontant le temps,
@@ -369,7 +404,7 @@ class PlanGenerator:
         - semaine allégée (S4)         : charge × REST_WEEK_FACTOR
         """
         race = self._race_info()
-        race_week_charge = race["load"] * RACE_WEEK_CHARGE_RATIO
+        race_week_charge = race["anchor_load"] * RACE_WEEK_CHARGE_RATIO
         peak = PEAK_MULTIPLIER * race_week_charge
 
         affutage = self.phases["affutage"]
@@ -491,84 +526,106 @@ class PlanGenerator:
                     continue
             entries.append((category, workout_date))
 
-        # 2) Budget de charge pour les séances hors sortie longue
+        # 2) Sortie longue : sa part de la charge hebdomadaire — créée en PREMIER
+        #    pour que la charge cible des fractionnés tienne compte de sa charge réelle
         ratio = long_run_ratio(self.plan.sessions_per_week) if long_run_slot else 0.0
+        long_workout = None
+        if long_run_slot:
+            category, long_date = long_run_slot
+            long_workout = self._create_long_run(category, long_date, ratio * target)
+
+        # 3) Budget de charge pour les autres séances (hors sortie longue)
+        spent = 0.0
+        if long_workout is not None:
+            spent += long_workout.estimated_load or 0
         if race_week:
             # La course occupe déjà une partie de la charge de sa semaine
-            others_budget = max(0.0, target - race["load"])
-        else:
-            others_budget = target * (1.0 - ratio)
+            spent += race["load"]
+        others_budget = max(0.0, target - spent)
 
-        if not race_week or others_budget > 1e-9:
+        if others_budget > 1e-9:
             others = self._create_week_sessions(entries, others_budget, phase)
         else:
             others = []
 
-        # 3) En semaine de course : ne pas dépasser le budget (retirer les moins prioritaires)
-        if race_week and others:
-            limit = others_budget * 1.25
-            for category_priority in ("Libre", "Endurance"):
-                while sum(w.estimated_load or 0 for w in others) > limit:
-                    index = next(
-                        (i for i in range(len(others) - 1, -1, -1)
-                         if others[i].category == category_priority),
-                        None,
-                    )
-                    if index is None:
-                        break
-                    others.pop(index)
-
-        # 4) Sortie longue : sa part de la charge hebdomadaire
-        if long_run_slot:
-            category, long_date = long_run_slot
-            long_charge = ratio * target
-            long_workout = self._create_long_run(category, long_date, long_charge)
-            if long_workout:
-                others.append(long_workout)
+        if long_workout is not None:
+            others.append(long_workout)
 
         self.workouts.extend(others)
 
     def _create_week_sessions(self, entries, budget, phase):
         """
-        Crée les séances hors sortie longue en répartissant le budget de charge
-        au prorata de leur charge nominale.
+        Crée les séances hors sortie longue, dans cet ordre :
+
+        1. Les fractionnés reçoivent chacun une charge cible (part du budget au
+           prorata des charges nominales) puis on sélectionne dans le catalogue
+           la séance à la charge la plus proche — son contenu n'est JAMAIS
+           modifié (ni répétitions, ni durées).
+        2. Les séances endurance/libre absorbent l'écart restant du budget.
+        3. Si le contenu minimum dépasse trop le budget (début de plan,
+           affûtage, semaine allégée), on retire les séances les moins
+           prioritaires (Libre puis Endurance) pour rester cohérent avec la
+           charge cible — le contenu restant n'est jamais modifié.
         """
-        # Charge nominale de chaque séance
-        nominals = []
+        fixed_specs = []  # (catégorie, date, durée nominale, difficulté)
+        frac_dates = []
         for category, date in entries:
             if category == "Fractionné":
-                cat_workout = self._pick_catalog_workout(phase)
-                if cat_workout is None:
-                    nominal_duration, difficulty = DEFAULT_FRACTIONNE
-                    nominals.append((category, date, float(nominal_duration), difficulty, None, None))
-                else:
-                    scheme = self._convert_scheme(cat_workout.scheme)
-                    nominal_duration = self._scheme_duration(scheme) or 30
-                    difficulty = getattr(cat_workout, "perceived_difficulty", None) or 7
-                    nominals.append((category, date, float(nominal_duration), difficulty, cat_workout, scheme))
+                frac_dates.append(date)
             else:
                 nominal_duration, difficulty = NOMINAL.get(category, (40, 3))
-                nominals.append((category, date, float(nominal_duration), difficulty, None, None))
+                fixed_specs.append((category, date, nominal_duration, difficulty))
 
-        total_nominal = sum(_load_of(d, diff) for _, _, d, diff, _, _ in nominals)
-        scale = (budget / total_nominal) if total_nominal > 0 else 1.0
+        # Charge nominale d'un fractionné : charge moyenne du pool de la phase
+        pool = self._phase_pool(phase)
+        if pool:
+            frac_nominal = sum(self._catalog_load(w) for w in pool) / float(len(pool))
+        else:
+            frac_nominal = _load_of(DEFAULT_FRACTIONNE[0], DEFAULT_FRACTIONNE[1])
 
-        workouts = []
-        for category, date, nominal_duration, difficulty, cat_workout, scheme in nominals:
-            target_duration = nominal_duration * scale
+        fixed_nominal = sum(_load_of(d, diff) for _, _, d, diff in fixed_specs)
+
+        # Répartition du budget au prorata des charges nominales
+        nominal_total = fixed_nominal + frac_nominal * len(frac_dates)
+        scale = (budget / nominal_total) if nominal_total > 0 else 1.0
+
+        # 1) Fractionnés : sélection catalogue par charge la plus proche (contenu figé)
+        frac_workouts = []
+        frac_actual = 0.0
+        for date in frac_dates:
+            workout = self._create_fractionne(date, phase, frac_nominal * scale)
+            if workout:
+                frac_actual += workout.estimated_load or 0
+                frac_workouts.append(workout)
+
+        # 2) Endurance/Libre absorbent le budget restant
+        remaining = max(0.0, budget - frac_actual)
+        fixed_scale = (remaining / fixed_nominal) if fixed_nominal > 0 else 1.0
+
+        fixed_workouts = []
+        for category, date, nominal_duration, difficulty in fixed_specs:
+            target_duration = nominal_duration * fixed_scale
             if category == "Endurance":
                 duration = _clamp(_round5(target_duration), *ENDURANCE_RANGE)
-                workout = self._create_endurance(date, duration)
-            elif category == "Libre":
-                duration = _clamp(_round5(target_duration), *LIBRE_RANGE)
-                workout = self._create_libre(date, duration)
-            elif category == "Fractionné":
-                workout = self._create_fractionne(date, cat_workout, scheme, target_duration)
+                fixed_workouts.append(self._create_endurance(date, duration))
             else:
-                workout = None
-            if workout:
-                workouts.append(workout)
-        return workouts
+                duration = _clamp(_round5(target_duration), *LIBRE_RANGE)
+                fixed_workouts.append(self._create_libre(date, duration))
+
+        # 3) Contenu minimum > budget : retirer les moins prioritaires
+        sessions = frac_workouts + fixed_workouts
+        limit = budget * BUDGET_OVERRUN_TOLERANCE
+        for category_priority in ("Libre", "Endurance"):
+            while sessions and sum(w.estimated_load or 0 for w in sessions) > limit:
+                index = next(
+                    (i for i in range(len(sessions) - 1, -1, -1)
+                     if sessions[i].category == category_priority),
+                    None,
+                )
+                if index is None:
+                    break
+                sessions.pop(index)
+        return sessions
 
     def _skip_date(self, workout_date, race_date):
         # Pas de séance le jour de la course ni la veille
@@ -630,15 +687,19 @@ class PlanGenerator:
             estimated_load=_load_of(duration, 2),
         )
 
-    def _create_fractionne(self, date, cat_workout, scheme, target_duration):
+    def _create_fractionne(self, date, phase, target_load):
         """
-        Séance de fractionné : issue du catalogue (ou 30/30 par défaut), ajustée
-        en répétitions pour viser la durée allouée par le budget de la semaine.
+        Séance de fractionné : la séance du catalogue (pré-filtrée par la phase
+        via PHASE_KEYWORDS) dont la charge est la plus proche de la charge
+        cible — son contenu (répétitions, durées, allures) n'est JAMAIS
+        modifié. Si le catalogue est vide, séance 30/30 par défaut (fixe).
         """
         from ..models.workout import Workout
 
+        cat_workout = self._pick_catalog_workout(phase, target_load)
+
         if cat_workout is None:
-            # Catalogue vide : séance 30/30 par défaut
+            # Catalogue vide : séance 30/30 par défaut (contenu fixe)
             pace_end = self.format_pace_vma(65)
             scheme = [
                 {
@@ -657,7 +718,7 @@ class PlanGenerator:
                     "intervals": [{"type": "Retour calme", "duration": 10, "pace_min": pace_end, "pace_max": pace_end}],
                 },
             ]
-            difficulty = DEFAULT_FRACTIONNE[1]
+            duration, difficulty = DEFAULT_FRACTIONNE
             name = "Fractionné 30/30"
             description = (
                 "Séance de VMA courte : 30 secondes d'effort à 105% VMA suivies "
@@ -665,17 +726,13 @@ class PlanGenerator:
             )
             workout_type = "Fractionné"
         else:
+            # Séance du catalogue telle quelle : aucune modification de contenu
+            scheme = self._convert_scheme(cat_workout.scheme)
+            duration = self._scheme_duration(scheme)
             difficulty = getattr(cat_workout, "perceived_difficulty", None) or 7
             name = cat_workout.name
             description = getattr(cat_workout, "description", None)
             workout_type = cat_workout.workout_type
-
-        # Ajuster le nombre de répétitions pour viser la durée allouée
-        scheme_duration = self._scheme_duration(scheme)
-        if scheme_duration > 0:
-            factor = _clamp(target_duration / float(scheme_duration), *FRACTIONNE_SCALE_RANGE)
-            scheme = self._scale_repetitions(scheme, factor)
-        duration = self._scheme_duration(scheme)
 
         return Workout(
             name=name,
@@ -767,15 +824,21 @@ class PlanGenerator:
 
     # -- Catalogue ---------------------------------------------------------------
 
-    def _pick_catalog_workout(self, phase):
+    def _catalog_load(self, cat_workout):
+        """Charge d'une séance du catalogue (durée × (1 + difficulté/5)), sans la modifier."""
+        duration = self._scheme_duration(getattr(cat_workout, "scheme", None) or []) or 30
+        difficulty = getattr(cat_workout, "perceived_difficulty", None) or 7
+        return _load_of(duration, difficulty)
+
+    def _phase_pool(self, phase):
         """
-        Choisit une séance de fractionné dans le catalogue selon la phase :
-        1. scoring par mots-clés (workout_type + name, insensible aux accents)
-        2. en affûtage, on restreint à la moitié la plus courte du pool
-        3. rotation round-robin avec anti-répétition immédiate
+        Pool de séances du catalogue pour la phase : scoring par mots-clés
+        (workout_type + name, insensible aux accents) — VMA/entretien en
+        non-spécifique et montée, seuil/tempo/allure en spécifique, relances
+        courtes en affûtage — puis tri par charge croissante.
         """
         if not self.catalog:
-            return None
+            return []
 
         keywords = [_norm(kw) for kw in PHASE_KEYWORDS.get(phase, [])]
         scored = []
@@ -788,23 +851,34 @@ class PlanGenerator:
 
         best_score = max(score for score, _ in scored)
         pool = [workout for score, workout in scored if score == best_score]
+        pool.sort(key=lambda w: (self._catalog_load(w), getattr(w, "id", 0) or 0))
+        return pool
 
-        pool.sort(key=lambda w: (self._scheme_duration(getattr(w, "scheme", None) or []), getattr(w, "id", 0) or 0))
+    def _pick_catalog_workout(self, phase, target_load):
+        """
+        Sélectionne dans le pool de la phase la séance du catalogue dont la
+        charge est la PLUS PROCHE de la charge cible — sans jamais modifier
+        son contenu. Anti-répétition : si la séance la plus proche est celle
+        utilisée la fois précédente, on lui préfère une alternative quasi
+        équivalente (écart dans ANTI_REPEAT_TOLERANCE).
+        """
+        pool = self._phase_pool(phase)
+        if not pool:
+            return None
 
-        # En affûtage, préférer les séances courtes (moitié la plus courte du pool)
-        if phase == "affutage" and len(pool) > 2:
-            pool = pool[: (len(pool) + 1) // 2]
+        best = min(pool, key=lambda w: abs(self._catalog_load(w) - target_load))
+        best_id = getattr(best, "id", None)
 
-        # Rotation anti-répétition
-        index = self._frac_counter % len(pool)
-        candidate = pool[index]
-        candidate_id = getattr(candidate, "id", None)
-        if len(pool) > 1 and candidate_id is not None and candidate_id == self._last_frac_id:
-            candidate = pool[(index + 1) % len(pool)]
-            candidate_id = getattr(candidate, "id", None)
-        self._frac_counter += 1
-        self._last_frac_id = candidate_id
-        return candidate
+        if len(pool) > 1 and best_id is not None and best_id == self._last_frac_id:
+            others = [w for w in pool if getattr(w, "id", None) != best_id]
+            alternative = min(others, key=lambda w: abs(self._catalog_load(w) - target_load))
+            best_gap = abs(self._catalog_load(best) - target_load)
+            alt_gap = abs(self._catalog_load(alternative) - target_load)
+            if alt_gap <= best_gap * ANTI_REPEAT_TOLERANCE + 1e-9:
+                best = alternative
+
+        self._last_frac_id = getattr(best, "id", None)
+        return best
 
     def _scheme_duration(self, scheme):
         """Durée totale d'un schéma (en tenant compte des répétitions)."""
@@ -820,24 +894,6 @@ class PlanGenerator:
             )
             total += repetitions * block_time
         return int(round(total))
-
-    def _scale_repetitions(self, scheme, factor):
-        """
-        Ajuste une séance en jouant sur le nombre de répétitions des blocs
-        répétés — jamais en dessous de 1. Les blocs en 1 répétition
-        (échauffement, retour au calme) sont préservés.
-        """
-        if abs(factor - 1.0) < 1e-9:
-            return scheme
-        new_scheme = []
-        for block in scheme or []:
-            if not isinstance(block, dict):
-                continue
-            repetitions = block.get("repetitions", 1) or 1
-            if repetitions > 1:
-                repetitions = max(1, int(round(repetitions * factor)))
-            new_scheme.append({**block, "repetitions": repetitions})
-        return new_scheme
 
     def _convert_scheme(self, scheme):
         """Convertit les allures %VMA du catalogue en min/km (comportement v1 conservé)."""
