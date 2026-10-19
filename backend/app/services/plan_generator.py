@@ -931,10 +931,10 @@ class PlanGenerator:
             return 0.0
         if interval.get("duration"):
             return float(interval["duration"])
-        distance = interval.get("distance")
+        distance = interval.get("distance") / 1000.0
         if not distance:
             return 0.0
-        return float(distance) * self._interval_pace_decimal(interval) / 1000
+        return float(distance) * self._interval_pace_decimal(interval)
 
     def _interval_pace_decimal(self, interval):
         """
@@ -983,7 +983,7 @@ class PlanGenerator:
                 # (allure × distance) dans le schéma généré
                 if not new_interval.get("duration") and new_interval.get("distance"):
                     new_interval["duration"] = round(
-                        float(new_interval["distance"]) * self._interval_pace_decimal(new_interval),
+                        float(new_interval["distance"]) * self._interval_pace_decimal(new_interval) / 1000.0,
                         1,
                     )
                 new_block["intervals"].append(new_interval)
