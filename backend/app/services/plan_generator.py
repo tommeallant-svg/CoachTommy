@@ -934,7 +934,7 @@ class PlanGenerator:
         distance = interval.get("distance")
         if not distance:
             return 0.0
-        return float(distance) * self._interval_pace_decimal(interval)
+        return float(distance) * self._interval_pace_decimal(interval) / 1000
 
     def _interval_pace_decimal(self, interval):
         """
