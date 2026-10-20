@@ -50,7 +50,7 @@ const convertVmaPercentageToPace = (vmaMinKm: number, percentage: number): strin
 export default function WorkoutDetailPage() {
   const { id } = useParams();
   const router = useRouter();
-  const user = getAuthUser();
+  const [user, setUser] = useState<any>(null);
   const isCoach = user?.role === 'coach';
 
   const [workout, setWorkout] = useState<Workout | null>(null);
@@ -84,9 +84,23 @@ export default function WorkoutDetailPage() {
   const [pushSuccess, setPushSuccess] = useState(false);
   
   useEffect(() => {
+    const authUser = getAuthUser();
+    setUser(authUser);
+
+    if (authUser && !authUser.id) {
+      fetchWithAuth('/api/auth/me')
+        .then(res => res.json())
+        .then(data => {
+          const updatedUser = { ...authUser, id: data.id };
+          localStorage.setItem('user', JSON.stringify(updatedUser));
+          setUser(updatedUser);
+        })
+        .catch(err => console.error("Erreur récup user:", err));
+    }
+
     fetchWorkout();
     checkGarminStatus();
-    if (isCoach) {
+    if (authUser?.role === 'coach') {
       fetchAthletes();
     }
   }, [id]);
@@ -409,6 +423,9 @@ export default function WorkoutDetailPage() {
                     required
                   >
                     <option value="">Choisir un athlète...</option>
+                    {user && (
+                      <option value={user.id}>Moi-même ({user.email})</option>
+                    )}
                     {athletes.map(a => (
                       <option key={a.id} value={a.id}>{a.email}</option>
                     ))}

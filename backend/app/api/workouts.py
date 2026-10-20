@@ -33,9 +33,9 @@ def create_workout(workout: WorkoutCreate, db: Session = Depends(get_db), curren
     
     # Si athlete_id est fourni et l'utilisateur est un coach, on l'utilise
     if workout.athlete_id and current_user.role == "coach":
-        # Vérifier que l'athlète existe
-        athlete = db.query(User).filter(User.id == workout.athlete_id, User.role == "athlete").first()
-        if not athlete:
+        # Vérifier que l'athlète existe et est soit un athlète, soit le coach lui-même
+        athlete = db.query(User).filter(User.id == workout.athlete_id).first()
+        if not athlete or (athlete.role != "athlete" and athlete.id != current_user.id):
             raise HTTPException(status_code=404, detail="Athlète non trouvé")
         db_workout.athlete_id = workout.athlete_id
     else:
@@ -57,13 +57,14 @@ def create_manual_workout(workout: WorkoutManualCreate, db: Session = Depends(ge
     is_validated = True
     
     if workout.athlete_id and current_user.role == "coach":
-        # Vérifier que l'athlète existe
-        athlete = db.query(User).filter(User.id == workout.athlete_id, User.role == "athlete").first()
-        if not athlete:
+        # Vérifier que l'athlète existe et est soit un athlète, soit le coach lui-même
+        athlete = db.query(User).filter(User.id == workout.athlete_id).first()
+        if not athlete or (athlete.role != "athlete" and athlete.id != current_user.id):
             raise HTTPException(status_code=404, detail="Athlète non trouvé")
         athlete_id = workout.athlete_id
-        # Si c'est un coach qui crée pour un athlète, la séance n'est pas validée par défaut
-        is_validated = False
+        # Si c'est un coach qui crée pour un athlète (différent de lui-même), la séance n'est pas validée par défaut
+        if athlete_id != current_user.id:
+            is_validated = False
 
     difficulty_level = workout.difficulty_level or workout.perceived_difficulty or 5
     perceived_diff = workout.perceived_difficulty if is_validated else None
@@ -166,8 +167,8 @@ def update_workout(workout_id: int, workout: WorkoutUpdate, db: Session = Depend
     if "athlete_id" in update_data and current_user.role == "coach":
         athlete_id = update_data["athlete_id"]
         if athlete_id:
-            athlete = db.query(User).filter(User.id == athlete_id, User.role == "athlete").first()
-            if not athlete:
+            athlete = db.query(User).filter(User.id == athlete_id).first()
+            if not athlete or (athlete.role != "athlete" and athlete.id != current_user.id):
                 raise HTTPException(status_code=404, detail="Athlète non trouvé")
     elif "athlete_id" in update_data:
         # Un athlète ne peut pas changer son propre athlete_id pour celui d'un autre

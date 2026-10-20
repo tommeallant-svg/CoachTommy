@@ -31,6 +31,7 @@ export default function LoginPage() {
         const data = await response.json();
         setAuthToken(data.access_token);
         localStorage.setItem('user', JSON.stringify({
+          id: data.id,
           email: data.email,
           role: data.role
         }));

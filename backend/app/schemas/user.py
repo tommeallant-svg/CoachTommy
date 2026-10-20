@@ -17,6 +17,7 @@ class UserResponse(UserBase):
 class Token(BaseModel):
     access_token: str
     token_type: str
+    id: int
     role: str
     email: str
 

@@ -166,6 +166,18 @@ function CalendarPageContent() {
     }
     const authUser = getAuthUser();
     setUser(authUser);
+
+    if (authUser && !authUser.id) {
+      fetchWithAuth('/api/auth/me')
+        .then(res => res.json())
+        .then(data => {
+          const updatedUser = { ...authUser, id: data.id };
+          localStorage.setItem('user', JSON.stringify(updatedUser));
+          setUser(updatedUser);
+        })
+        .catch(err => console.error("Erreur récup user:", err));
+    }
+
     fetchWorkouts(athleteId);
     fetchCurrentPlan(athleteId);
   }, [router, athleteId]);

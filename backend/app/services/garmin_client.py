@@ -79,11 +79,11 @@ class GarminClient:
         self.is_authenticated = False
         self._token_dict = None
 
-    def create_workout(self, workout_data: dict):
+    def upload_workout(self, workout_data: dict):
         """
         Crée un workout sur Garmin Connect.
         
         Args:
             workout_data: Données du workout au format Garmin
         """
-        return self.client.create_workout(workout_data)
+        return self.client.upload_workout(workout_data)

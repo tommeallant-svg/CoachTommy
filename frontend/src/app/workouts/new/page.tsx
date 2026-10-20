@@ -53,6 +53,17 @@ function NewManualWorkoutPageContent() {
     const authUser = getAuthUser();
     setUser(authUser);
     
+    if (authUser && !authUser.id) {
+      fetchWithAuth('/api/auth/me')
+        .then(res => res.json())
+        .then(data => {
+          const updatedUser = { ...authUser, id: data.id };
+          localStorage.setItem('user', JSON.stringify(updatedUser));
+          setUser(updatedUser);
+        })
+        .catch(err => console.error("Erreur récup user:", err));
+    }
+
     if (authUser?.role === 'coach') {
       fetchAthletes();
     }
@@ -235,6 +246,9 @@ function NewManualWorkoutPageContent() {
                   required
                 >
                   <option value="">Choisir un athlète...</option>
+                  {user && (
+                    <option value={user.id}>Moi-même ({user.email})</option>
+                  )}
                   {athletes.map(a => (
                     <option key={a.id} value={a.id}>{a.email}</option>
                   ))}

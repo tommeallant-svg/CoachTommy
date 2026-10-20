@@ -163,4 +163,4 @@ def push_workout(workout, garmin_client):
         garmin_client: Authenticated Garmin client instance
     """
     payload = GarminMapper.workout_to_garmin(workout)
-    garmin_client.create_workout(payload)
+    garmin_client.upload_workout(payload)
