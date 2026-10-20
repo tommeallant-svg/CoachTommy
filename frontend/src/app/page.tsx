@@ -35,7 +35,8 @@ import {
   Plus,
   LogOut,
   Users,
-  Dumbbell
+  Dumbbell,
+  Watch
 } from 'lucide-react';
 import Link from 'next/link';
 import { Workout } from '@/types/workout';
@@ -46,6 +47,7 @@ import {
   clearAuthToken, 
   getAuthUser 
 } from '@/lib/api';
+import GarminAuthModal from '@/components/GarminAuthModal';
 import {
   DndContext,
   DragEndEvent,
@@ -149,6 +151,8 @@ function CalendarPageContent() {
   const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null);
   const [isSideMenuOpen, setIsSideMenuOpen] = useState(false);
   const [currentPlan, setCurrentPlan] = useState<any>(null);
+  const [showGarminAuthModal, setShowGarminAuthModal] = useState(false);
+  const [garminStatus, setGarminStatus] = useState({ is_connected: false, garmin_email: '' });
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -180,7 +184,20 @@ function CalendarPageContent() {
 
     fetchWorkouts(athleteId);
     fetchCurrentPlan(athleteId);
+    checkGarminStatus();
   }, [router, athleteId]);
+
+  const checkGarminStatus = async () => {
+    try {
+      const response = await fetchWithAuth('/api/auth/garmin/status');
+      if (response.ok) {
+        const data = await response.json();
+        setGarminStatus(data);
+      }
+    } catch (err) {
+      console.error('Failed to check Garmin status:', err);
+    }
+  };
 
   const fetchWorkouts = async (id?: string | null) => {
     try {
@@ -354,6 +371,19 @@ function CalendarPageContent() {
           <Plus className="w-4 h-4" />
           <span>Séance Manuelle</span>
         </Link>
+
+        <button
+          onClick={() => setShowGarminAuthModal(true)}
+          className={`flex items-center gap-2 px-4 md:px-6 py-3 rounded-2xl font-black uppercase text-xs tracking-widest transition-all ${
+            garminStatus.is_connected 
+            ? 'bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100' 
+            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+          }`}
+          title="Réglages Garmin Connect"
+        >
+          <Watch className={`w-4 h-4 ${garminStatus.is_connected ? 'text-blue-600' : ''}`} />
+          <span>Garmin</span>
+        </button>
 
         <button
           onClick={handleLogout}
@@ -584,6 +614,14 @@ function CalendarPageContent() {
           onClick={() => setIsSideMenuOpen(false)}
         />
       )}
+
+      <GarminAuthModal
+        isOpen={showGarminAuthModal}
+        onClose={() => setShowGarminAuthModal(false)}
+        onSuccess={checkGarminStatus}
+        currentEmail={garminStatus.garmin_email}
+        isConnected={garminStatus.is_connected}
+      />
     </main>
   );
 }

@@ -161,20 +161,22 @@ export default function GarminAuthModal({
             <p className="text-sm text-gray-500 font-medium">
               Compte: <span className="font-black text-black">{status.garmin_email}</span>
             </p>
-            <button
-              onClick={handleLogout}
-              disabled={isLoading}
-              className="w-full bg-black text-white font-black uppercase text-xs tracking-widest py-4 rounded-2xl hover:bg-gray-800 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Déconnexion...
-                </>
-              ) : (
-                'Déconnecter de Garmin Connect'
-              )}
-            </button>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={handleLogout}
+                disabled={isLoading}
+                className="w-full bg-black text-white font-black uppercase text-xs tracking-widest py-4 rounded-2xl hover:bg-gray-800 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Action en cours...
+                  </>
+                ) : (
+                  'Déconnecter / Reconnecter'
+                )}
+              </button>
+            </div>
           </div>
         ) : (
           <form onSubmit={handleLogin} className="space-y-4">

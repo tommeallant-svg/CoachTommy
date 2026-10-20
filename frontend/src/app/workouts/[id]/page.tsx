@@ -18,7 +18,8 @@ import {
   Link2,
   Unlink,
   Loader2,
-  Users
+  Users,
+  RefreshCw
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -584,7 +585,18 @@ export default function WorkoutDetailPage() {
                   </div>
                   {pushError && (
                     <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl">
-                      <span className="text-sm font-medium text-red-600">{pushError}</span>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-sm font-medium text-red-600">{pushError}</span>
+                        {pushError.includes('reconnect') && (
+                          <button 
+                            onClick={() => setShowGarminAuthModal(true)}
+                            className="flex-shrink-0 flex items-center gap-1.5 bg-red-600 text-white px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-all shadow-md"
+                          >
+                            <RefreshCw className="w-3 h-3" />
+                            Reconnecter
+                          </button>
+                        )}
+                      </div>
                     </div>
                   )}
                   {pushSuccess && (
