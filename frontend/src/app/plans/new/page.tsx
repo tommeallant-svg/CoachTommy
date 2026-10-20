@@ -11,11 +11,12 @@ import {
   Timer,
   Trophy,
   Dumbbell,
-  Plus
+  Plus,
+  Users
 } from 'lucide-react';
 import { format } from 'date-fns';
 import Link from 'next/link';
-import { fetchWithAuth } from '@/lib/api';
+import { fetchWithAuth, getAuthUser } from '@/lib/api';
 import {
   DndContext,
   DragEndEvent,
@@ -134,9 +135,11 @@ function DaySlot({ dayIdx, type }: { dayIdx: number, type: string | null }) {
 function NewPlanPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const athleteId = searchParams.get('athleteId');
+  const athleteIdParam = searchParams.get('athleteId');
   
   const [loading, setLoading] = useState(false);
+  const [user, setUser] = useState<any>(null);
+  const [athletes, setAthletes] = useState<any[]>([]);
   const [showPopup, setShowPopup] = useState(false);
   const [existingPlan, setExistingPlan] = useState<any>(null);
   const [cancellationComment, setCancellationComment] = useState('');
@@ -150,7 +153,8 @@ function NewPlanPageContent() {
     sessions_per_week: 3,
     goal_type: 'maintien',
     training_days: {} as Record<number, string>,
-    estimated_vma: 5.0 // 5:00/km par défaut
+    estimated_vma: 5.0,
+    athlete_id: athleteIdParam ? parseInt(athleteIdParam) : null
   });
 
   const sensors = useSensors(
@@ -162,6 +166,12 @@ function NewPlanPageContent() {
   );
 
   useEffect(() => {
+    const authUser = getAuthUser();
+    setUser(authUser);
+    if (authUser?.role === 'coach') {
+      fetchAthletes();
+    }
+    
     // Set default start_date to next Monday
     const now = new Date();
     const day = now.getDay();
@@ -170,6 +180,18 @@ function NewPlanPageContent() {
     nextMonday.setDate(now.getDate() + (day === 1 ? 0 : diff));
     setFormData(prev => ({...prev, start_date: nextMonday.toISOString().split('T')[0]}));
   }, []);
+
+  const fetchAthletes = async () => {
+    try {
+      const res = await fetchWithAuth('/api/coach/athletes');
+      if (res.ok) {
+        const data = await res.json();
+        setAthletes(data);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   // Update training days automatically when goal or sessions per week change
   useEffect(() => {
@@ -235,18 +257,24 @@ function NewPlanPageContent() {
 
   useEffect(() => {
     const checkExistingPlan = async () => {
-      const url = athleteId ? `/api/plans/current?athlete_id=${athleteId}` : '/api/plans/current';
+      const targetId = formData.athlete_id || athleteIdParam;
+      if (!targetId) return;
+      
+      const url = `/api/plans/current?athlete_id=${targetId}`;
       const res = await fetchWithAuth(url);
       if (res.ok) {
         const data = await res.json();
         if (data) {
           setExistingPlan(data);
           setShowPopup(true);
+        } else {
+          setShowPopup(false);
+          setExistingPlan(null);
         }
       }
     };
     checkExistingPlan();
-  }, [athleteId]);
+  }, [formData.athlete_id, athleteIdParam]);
 
   const handleArchive = async () => {
     if (!cancellationComment) {
@@ -278,13 +306,14 @@ function NewPlanPageContent() {
         method: 'POST',
         body: JSON.stringify({
           ...formData,
-          athlete_id: athleteId ? parseInt(athleteId) : null,
+          athlete_id: formData.athlete_id,
           race_date: format(new Date(formData.race_date), "yyyy-MM-dd'T'12:00:00"),
           start_date: format(new Date(formData.start_date), "yyyy-MM-dd'T'00:00:00"),
         })
       });
       if (res.ok) {
-        router.push(athleteId ? `/?athleteId=${athleteId}` : '/');
+        const backUrl = formData.athlete_id ? `/?athleteId=${formData.athlete_id}` : '/';
+        router.push(backUrl);
       } else {
         const err = await res.json();
         alert(err.detail || 'Erreur lors de la création du plan');
@@ -345,7 +374,7 @@ function NewPlanPageContent() {
       {/* Header */}
       <div className="bg-white border-b border-gray-100 sticky top-0 z-30 px-6 py-6">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <Link href={athleteId ? `/?athleteId=${athleteId}` : "/"} className="flex items-center gap-2 text-gray-400 hover:text-black transition-colors font-black uppercase text-xs tracking-widest">
+          <Link href={formData.athlete_id ? `/?athleteId=${formData.athlete_id}` : "/"} className="flex items-center gap-2 text-gray-400 hover:text-black transition-colors font-black uppercase text-xs tracking-widest">
             <ChevronLeft className="w-5 h-5" />
             <span>Retour</span>
           </Link>
@@ -356,6 +385,30 @@ function NewPlanPageContent() {
 
       <div className="max-w-3xl mx-auto px-6 mt-12">
         <form onSubmit={handleSubmit} className="space-y-8">
+          {/* Coach-only athlete selector */}
+          {user?.role === 'coach' && (
+            <section className="bg-white p-8 rounded-[2rem] shadow-sm border border-gray-100 space-y-6">
+              <div className="flex items-center gap-3 mb-2">
+                <Users className="w-6 h-6 text-black" />
+                <h2 className="text-xl font-black uppercase tracking-tight">Athlète ciblé</h2>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 ml-1">Choisir l'athlète</label>
+                <select
+                  className="w-full px-6 py-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-black focus:bg-white outline-none transition-all font-bold appearance-none cursor-pointer"
+                  value={formData.athlete_id || ''}
+                  onChange={e => setFormData({...formData, athlete_id: e.target.value ? parseInt(e.target.value) : null})}
+                  required
+                >
+                  <option value="">Sélectionner un athlète...</option>
+                  {athletes.map(a => (
+                    <option key={a.id} value={a.id}>{a.email}</option>
+                  ))}
+                </select>
+              </div>
+            </section>
+          )}
+
           {/* Race Section */}
           <section className="bg-white p-8 rounded-[2rem] shadow-sm border border-gray-100 space-y-6">
             <div className="flex items-center gap-3 mb-2">

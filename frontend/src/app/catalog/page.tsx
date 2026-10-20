@@ -12,7 +12,8 @@ import {
   X,
   Dumbbell,
   Activity,
-  Tag
+  Tag,
+  Calendar
 } from 'lucide-react';
 import Link from 'next/link';
 import { fetchWithAuth, getAuthUser } from '@/lib/api';
@@ -23,6 +24,11 @@ export default function CatalogPage() {
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<any>(null);
+  const [assigningWorkout, setAssigningWorkout] = useState<any>(null);
+  const [athletes, setAthletes] = useState<any[]>([]);
+  const [selectedAthleteId, setSelectedAthleteId] = useState<number | null>(null);
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 16));
+  const [isAssigning, setIsAssigning] = useState(false);
 
   useEffect(() => {
     const user = getAuthUser();
@@ -31,7 +37,20 @@ export default function CatalogPage() {
       return;
     }
     fetchCatalog();
+    fetchAthletes();
   }, [router]);
+
+  const fetchAthletes = async () => {
+    try {
+      const res = await fetchWithAuth('/api/coach/athletes');
+      if (res.ok) {
+        const data = await res.json();
+        setAthletes(data);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const fetchCatalog = async () => {
     try {
@@ -81,6 +100,82 @@ export default function CatalogPage() {
       }
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const handleAssign = async () => {
+    if (!selectedAthleteId || !assigningWorkout) return;
+    setIsAssigning(true);
+    try {
+      // Récupérer la VMA de l'athlète
+      const planRes = await fetchWithAuth(`/api/plans/current?athlete_id=${selectedAthleteId}`);
+      let athleteVma = 5.0;
+      if (planRes.ok) {
+        const planData = await planRes.json();
+        if (planData) athleteVma = planData.estimated_vma;
+      }
+
+      // Préparer la séance
+      const formatMinutesToMMSS = (minutes: number): string => {
+        const totalSeconds = Math.floor(minutes * 60);
+        const mm = Math.floor(totalSeconds / 60);
+        const ss = totalSeconds % 60;
+        return `${mm}:${ss.toString().padStart(2, '0')}`;
+      };
+      const convertVmaPercentageToPace = (vmaMinKm: number, percentage: number): string => {
+        if (percentage <= 0) return "0:00";
+        const paceMinKm = vmaMinKm / (percentage / 100);
+        return formatMinutesToMMSS(paceMinKm);
+      };
+
+      const scheme = assigningWorkout.scheme || [];
+      let totalDuration = 0;
+      const processedScheme = scheme.map((block: any) => {
+        const repetitions = block.repetitions || 1;
+        const processedIntervals = block.intervals?.map((interval: any) => {
+          if (interval.pace_vma_min !== undefined && interval.pace_vma_max !== undefined) {
+            return {
+              ...interval,
+              pace_min: convertVmaPercentageToPace(athleteVma, interval.pace_vma_min),
+              pace_max: convertVmaPercentageToPace(athleteVma, interval.pace_vma_max)
+            };
+          }
+          return interval;
+        });
+        if (processedIntervals) {
+          processedIntervals.forEach((interval: any) => {
+            if (interval.duration) totalDuration += interval.duration * repetitions;
+          });
+        }
+        return { ...block, intervals: processedIntervals };
+      });
+
+      const res = await fetchWithAuth('/api/workouts', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: assigningWorkout.name,
+          workout_type: assigningWorkout.workout_type,
+          category: assigningWorkout.category,
+          duration_minutes: Math.round(totalDuration),
+          difficulty_level: assigningWorkout.perceived_difficulty || 5,
+          description: assigningWorkout.description || assigningWorkout.name,
+          date: new Date(selectedDate).toISOString(),
+          athlete_id: selectedAthleteId,
+          scheme: processedScheme
+        })
+      });
+
+      if (res.ok) {
+        alert('Séance assignée avec succès !');
+        setAssigningWorkout(null);
+      } else {
+        alert('Erreur lors de l\'assignation');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Erreur réseau');
+    } finally {
+      setIsAssigning(false);
     }
   };
 
@@ -178,6 +273,13 @@ export default function CatalogPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => setAssigningWorkout(workout)} 
+                        className="p-4 bg-blue-50 text-blue-600 hover:text-white hover:bg-blue-600 rounded-2xl transition-all"
+                        title="Assigner à un athlète"
+                      >
+                        <Calendar className="w-5 h-5" />
+                      </button>
                       <button onClick={() => startEditing(workout)} className="p-4 bg-gray-50 text-gray-400 hover:text-black hover:bg-gray-100 rounded-2xl transition-all">
                         <Pencil className="w-5 h-5" />
                       </button>
@@ -203,6 +305,57 @@ export default function CatalogPage() {
           </div>
         )}
       </div>
+
+      {/* Assignment Modal */}
+      {assigningWorkout && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-[2.5rem] p-8 max-w-md w-full shadow-2xl border border-gray-100">
+            <h3 className="text-xl font-black uppercase tracking-tight mb-6">Assigner : {assigningWorkout.name}</h3>
+            
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Choisir l'athlète</label>
+                <select
+                  className="w-full bg-gray-50 border-none rounded-2xl px-6 py-4 font-bold text-black outline-none focus:ring-2 focus:ring-black transition-all appearance-none cursor-pointer"
+                  value={selectedAthleteId || ''}
+                  onChange={e => setSelectedAthleteId(parseInt(e.target.value))}
+                >
+                  <option value="">Sélectionner un athlète...</option>
+                  {athletes.map(a => (
+                    <option key={a.id} value={a.id}>{a.email}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Date & Heure</label>
+                <input
+                  type="datetime-local"
+                  className="w-full bg-gray-50 border-none rounded-2xl px-6 py-4 font-bold text-black outline-none focus:ring-2 focus:ring-black transition-all"
+                  value={selectedDate}
+                  onChange={e => setSelectedDate(e.target.value)}
+                />
+              </div>
+
+              <div className="flex gap-4 pt-4">
+                <button
+                  onClick={() => setAssigningWorkout(null)}
+                  className="flex-1 py-4 bg-gray-100 text-gray-500 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-gray-200 transition-all"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleAssign}
+                  disabled={!selectedAthleteId || isAssigning}
+                  className="flex-1 py-4 bg-black text-white rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-gray-800 transition-all shadow-lg disabled:opacity-50"
+                >
+                  {isAssigning ? 'Assignation...' : 'Assigner'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

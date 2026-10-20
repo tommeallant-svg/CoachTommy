@@ -30,7 +30,17 @@ def format_pace(duration_min, distance_km):
 @router.post("", response_model=WorkoutResponse, status_code=status.HTTP_201_CREATED)
 def create_workout(workout: WorkoutCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     db_workout = Workout(**workout.model_dump())
-    db_workout.athlete_id = current_user.id
+    
+    # Si athlete_id est fourni et l'utilisateur est un coach, on l'utilise
+    if workout.athlete_id and current_user.role == "coach":
+        # Vérifier que l'athlète existe
+        athlete = db.query(User).filter(User.id == workout.athlete_id, User.role == "athlete").first()
+        if not athlete:
+            raise HTTPException(status_code=404, detail="Athlète non trouvé")
+        db_workout.athlete_id = workout.athlete_id
+    else:
+        db_workout.athlete_id = current_user.id
+        
     db_workout.estimated_load = calculate_load(db_workout.duration_minutes, db_workout.difficulty_level)
     db.add(db_workout)
     db.commit()
@@ -39,23 +49,40 @@ def create_workout(workout: WorkoutCreate, db: Session = Depends(get_db), curren
 
 @router.post("/manual", response_model=WorkoutResponse, status_code=status.HTTP_201_CREATED)
 def create_manual_workout(workout: WorkoutManualCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    name = f"Séance manuelle - {workout.duration_minutes} - {workout.distance_km}"
+    default_name = f"Séance manuelle - {workout.duration_minutes} - {workout.distance_km}"
+    name = workout.name or default_name
     pace = format_pace(workout.duration_minutes, workout.distance_km)
+    
+    athlete_id = current_user.id
+    is_validated = True
+    
+    if workout.athlete_id and current_user.role == "coach":
+        # Vérifier que l'athlète existe
+        athlete = db.query(User).filter(User.id == workout.athlete_id, User.role == "athlete").first()
+        if not athlete:
+            raise HTTPException(status_code=404, detail="Athlète non trouvé")
+        athlete_id = workout.athlete_id
+        # Si c'est un coach qui crée pour un athlète, la séance n'est pas validée par défaut
+        is_validated = False
+
+    difficulty_level = workout.difficulty_level or workout.perceived_difficulty or 5
+    perceived_diff = workout.perceived_difficulty if is_validated else None
+    athlete_comment = workout.athlete_comment if is_validated else None
     
     db_workout = Workout(
         workout_type=workout.workout_type,
         name=name,
         duration_minutes=workout.duration_minutes,
         distance_km=workout.distance_km,
-        difficulty_level=workout.perceived_difficulty,
-        perceived_difficulty=workout.perceived_difficulty,
-        athlete_comment=workout.athlete_comment,
-        description=f"{name}\n\n{workout.athlete_comment}" if workout.athlete_comment else name,
+        difficulty_level=difficulty_level,
+        perceived_difficulty=perceived_diff,
+        athlete_comment=athlete_comment,
+        description=workout.description or (f"{name}\n\n{athlete_comment}" if athlete_comment else name),
         date=workout.date,
-        is_validated=True,
-        athlete_id=current_user.id,
+        is_validated=is_validated,
+        athlete_id=athlete_id,
         category=workout.workout_type, # By default
-        estimated_load=calculate_load(workout.duration_minutes, workout.perceived_difficulty),
+        estimated_load=calculate_load(workout.duration_minutes, difficulty_level),
         scheme=[{
             "repetitions": 1,
             "intervals": [{
@@ -134,6 +161,18 @@ def update_workout(workout_id: int, workout: WorkoutUpdate, db: Session = Depend
         raise HTTPException(status_code=404, detail="Workout not found")
     
     update_data = workout.model_dump(exclude_unset=True)
+    
+    # Si athlete_id est mis à jour, vérifier qu'il s'agit d'un athlète valide (si coach)
+    if "athlete_id" in update_data and current_user.role == "coach":
+        athlete_id = update_data["athlete_id"]
+        if athlete_id:
+            athlete = db.query(User).filter(User.id == athlete_id, User.role == "athlete").first()
+            if not athlete:
+                raise HTTPException(status_code=404, detail="Athlète non trouvé")
+    elif "athlete_id" in update_data:
+        # Un athlète ne peut pas changer son propre athlete_id pour celui d'un autre
+        update_data.pop("athlete_id")
+
     for key, value in update_data.items():
         setattr(db_workout, key, value)
     

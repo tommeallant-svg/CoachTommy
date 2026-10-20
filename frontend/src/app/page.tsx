@@ -335,7 +335,7 @@ function CalendarPageContent() {
         )}
 
         <Link
-          href="/workouts/new"
+          href={athleteId ? `/workouts/new?athleteId=${athleteId}` : "/workouts/new"}
           className="flex items-center gap-2 bg-white text-black px-4 md:px-6 py-3 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-gray-50 transition-all border-2 border-black"
           title="Ajouter une séance manuellement"
         >

@@ -42,14 +42,19 @@ class WorkoutUpdate(BaseModel):
     perceived_difficulty: Optional[int] = Field(None, ge=1, le=10)
     athlete_comment: Optional[str] = None
     plan_id: Optional[int] = None
+    athlete_id: Optional[int] = None
 
 class WorkoutManualCreate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
     duration_minutes: int
     distance_km: float
     workout_type: str
-    perceived_difficulty: int
+    difficulty_level: Optional[int] = Field(None, ge=1, le=10)
+    perceived_difficulty: Optional[int] = Field(None, ge=1, le=10)
     athlete_comment: Optional[str] = None
     date: datetime
+    athlete_id: Optional[int] = None
 
 class WorkoutValidation(BaseModel):
     perceived_difficulty: int = Field(..., ge=1, le=10)

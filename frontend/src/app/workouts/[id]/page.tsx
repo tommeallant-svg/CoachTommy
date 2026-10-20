@@ -17,7 +17,8 @@ import {
   X,
   Link2,
   Unlink,
-  Loader2
+  Loader2,
+  Users
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -58,6 +59,7 @@ export default function WorkoutDetailPage() {
   const [perceivedDifficulty, setPerceivedDifficulty] = useState(5);
   const [comment, setComment] = useState('');
   const [isValidating, setIsValidating] = useState(false);
+  const [athletes, setAthletes] = useState<any[]>([]);
 
   const [editFormData, setEditFormData] = useState({
     name: '',
@@ -66,7 +68,8 @@ export default function WorkoutDetailPage() {
     difficulty_level: 0,
     description: '',
     date: '',
-    scheme: [] as any[]
+    scheme: [] as any[],
+    athlete_id: null as number | null
   });
   const [showGarminHelp, setShowGarminHelp] = useState(false);
   const [showCatalogModal, setShowCatalogModal] = useState(false);
@@ -83,7 +86,22 @@ export default function WorkoutDetailPage() {
   useEffect(() => {
     fetchWorkout();
     checkGarminStatus();
+    if (isCoach) {
+      fetchAthletes();
+    }
   }, [id]);
+
+  const fetchAthletes = async () => {
+    try {
+      const res = await fetchWithAuth('/api/coach/athletes');
+      if (res.ok) {
+        const data = await res.json();
+        setAthletes(data);
+      }
+    } catch (err) {
+      console.error('Erreur lors de la récupération des athlètes:', err);
+    }
+  };
 
   const checkGarminStatus = async () => {
     setIsCheckingGarmin(true);
@@ -184,7 +202,8 @@ export default function WorkoutDetailPage() {
         difficulty_level: data.difficulty_level,
         description: data.description || '',
         date: data.date.slice(0, 16),
-        scheme: data.scheme || []
+        scheme: data.scheme || [],
+        athlete_id: data.athlete_id
       });
       
       // Récupérer la VMA de l'athlète depuis le plan
@@ -375,6 +394,28 @@ export default function WorkoutDetailPage() {
           <section className="bg-white rounded-[2rem] md:rounded-[3rem] p-6 md:p-16 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.06)] border border-gray-50">
             <h2 className="text-2xl md:text-4xl font-black text-black uppercase tracking-tighter mb-6 md:mb-12">Modifier la séance</h2>
             <form onSubmit={handleUpdate} className="space-y-6 md:space-y-8">
+              
+              {/* Coach-only athlete selector */}
+              {isCoach && (
+                <div className="space-y-2 pb-6 border-b border-gray-50">
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 ml-1 flex items-center gap-2">
+                    <Users className="w-3 h-3" />
+                    Attribuer à l'athlète
+                  </label>
+                  <select
+                    className="w-full px-6 py-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-black focus:bg-white outline-none transition-all font-bold appearance-none cursor-pointer"
+                    value={editFormData.athlete_id || ''}
+                    onChange={e => setEditFormData({...editFormData, athlete_id: e.target.value ? parseInt(e.target.value) : null})}
+                    required
+                  >
+                    <option value="">Choisir un athlète...</option>
+                    {athletes.map(a => (
+                      <option key={a.id} value={a.id}>{a.email}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               <div className="flex justify-end mb-4">
                 <button
                   type="button"
