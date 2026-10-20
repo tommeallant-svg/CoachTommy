@@ -1,5 +1,6 @@
 from typing import Any
 from app.models.workout import Workout
+from .garmin_utils import pace_str_to_speed_ms, vma_to_speed_ms
 
 
 SPORT_MAPPING = {
@@ -22,8 +23,12 @@ class GarminMapper:
             "running"
         )
 
+        vma = None
+        if workout.plan and hasattr(workout.plan, "estimated_vma"):
+            vma = workout.plan.estimated_vma
+
         garmin_workout = {
-            "workoutName": workout.name,
+            "workoutName": workout.name[:40],
             "description": workout.description or "",
             "sportType": {
                 "sportTypeKey": sport
@@ -42,7 +47,9 @@ class GarminMapper:
 
             segment = GarminMapper._map_block(
                 block=block,
-                order=order
+                order=order,
+                sport=sport,
+                vma=vma
             )
 
             garmin_workout["workoutSegments"].append(segment)
@@ -54,7 +61,9 @@ class GarminMapper:
     @staticmethod
     def _map_block(
         block: dict,
-        order: int
+        order: int,
+        sport: str,
+        vma: float | None = None
     ) -> dict:
 
         repetitions = block.get(
@@ -75,7 +84,8 @@ class GarminMapper:
 
             step = GarminMapper._map_interval(
                 interval=interval,
-                step_order=step_order
+                step_order=step_order,
+                vma=vma
             )
 
             steps.append(step)
@@ -85,7 +95,7 @@ class GarminMapper:
         return {
             "segmentOrder": order,
             "sportType": {
-                "sportTypeKey": "running"
+                "sportTypeKey": sport
             },
             "workoutSteps": steps,
             "repeatCount": repetitions
@@ -94,14 +104,20 @@ class GarminMapper:
     @staticmethod
     def _map_interval(
         interval: dict,
-        step_order: int
+        step_order: int,
+        vma: float | None = None
     ) -> dict:
 
-        duration = interval.get(
-            "duration",
-            1
-        )
+        duration_type = "TIME"
+        duration_value = 0
 
+        if "distance" in interval:
+            duration_type = "DISTANCE"
+            duration_value = float(interval["distance"]) * 1000.0  # km -> m
+        elif "duration" in interval:
+            duration_type = "TIME"
+            duration_value = float(interval["duration"]) * 60.0  # min -> sec
+        
         interval_type = interval.get(
             "type",
             "Interval"
@@ -113,12 +129,13 @@ class GarminMapper:
                 interval_type
             ),
             "description": interval_type,
-            "durationType": "TIME",
-            "durationValue": duration * 60,
+            "durationType": duration_type,
+            "durationValue": duration_value,
         }
 
         target = GarminMapper._build_target(
-            interval
+            interval,
+            vma
         )
 
         if target:
@@ -155,20 +172,40 @@ class GarminMapper:
 
     @staticmethod
     def _build_target(
-        interval: dict
+        interval: dict,
+        vma: float | None = None
     ) -> dict | None:
 
-        if (
-            "pace_vma_min" in interval
-            and
-            "pace_vma_max" in interval
-        ):
-            return {
-                "type": "PACE",
-                "from": interval["pace_vma_min"],
-                "to": interval["pace_vma_max"],
-            }
+        # 1. Paces explicites (format "M:SS")
+        if "pace_min" in interval or "pace_max" in interval:
+            speed_min = pace_str_to_speed_ms(interval.get("pace_min"))
+            speed_max = pace_str_to_speed_ms(interval.get("pace_max"))
 
+            if speed_min or speed_max:
+                speeds = [s for s in (speed_min, speed_max) if s]
+                return {
+                    "type": "PACE",
+                    "from": min(speeds),
+                    "to": max(speeds),
+                }
+
+        # 2. Pourcentages de VMA
+        if (
+            vma
+            and "pace_vma_min" in interval
+            and "pace_vma_max" in interval
+        ):
+            speed_min = vma_to_speed_ms(vma, interval["pace_vma_min"])
+            speed_max = vma_to_speed_ms(vma, interval["pace_vma_max"])
+
+            if speed_min and speed_max:
+                return {
+                    "type": "PACE",
+                    "from": min(speed_min, speed_max),
+                    "to": max(speed_min, speed_max),
+                }
+
+        # 3. Fréquence cardiaque
         if (
             "hr_min" in interval
             and
@@ -180,6 +217,7 @@ class GarminMapper:
                 "to": interval["hr_max"],
             }
 
+        # 4. Puissance
         if (
             "power_min" in interval
             and

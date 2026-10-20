@@ -29,6 +29,8 @@ class GarminClient:
                 # Utilisation du tokenstore en format JSON string comme supporté par la lib
                 self.client.login(tokenstore=json.dumps(token_dict))
                 self.is_authenticated = True
+                # Récupérer l'email (username) depuis le client après login réussi par token
+                self.email = self.client.username
             except Exception as e:
                 # Si le login via token échoue (ex: expiré), on marque comme non authentifié
                 print(f"Garmin token login failed: {e}")

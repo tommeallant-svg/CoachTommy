@@ -34,7 +34,7 @@ export const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
 
   const response = await fetch(`${API_URL}${url}`, { ...options, headers });
   
-  if (response.status === 401) {
+  if (response.status === 401 && !url.includes('/api/auth/garmin/login')) {
     clearAuthToken();
     if (typeof window !== 'undefined') {
       window.location.href = '/login';

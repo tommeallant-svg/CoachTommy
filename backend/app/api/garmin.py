@@ -10,6 +10,11 @@ from ..database import get_db
 from ..models.user import User
 from ..auth import get_current_user
 from ..services.garmin_client import GarminClient
+from garminconnect import (
+    GarminConnectAuthenticationError,
+    GarminConnectTooManyRequestsError,
+    GarminConnectConnectionError
+)
 
 router = APIRouter(prefix="/auth/garmin", tags=["garmin"])
 
@@ -28,8 +33,7 @@ class GarminStatusResponse(BaseModel):
 
 @router.post("/login", response_model=GarminStatusResponse)
 async def garmin_login(
-    email: str,
-    password: str,
+    request: GarminLoginRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -39,7 +43,7 @@ async def garmin_login(
     """
     try:
         # Create Garmin client and login
-        garmin_client = GarminClient(email=email, password=password)
+        garmin_client = GarminClient(email=request.email, password=request.password)
         token_dict = garmin_client.login()
         
         if not token_dict:
@@ -50,7 +54,7 @@ async def garmin_login(
         
         # Store tokens in database
         import json
-        current_user.garmin_email = email
+        current_user.garmin_email = request.email
         # On stocke le dictionnaire complet en JSON dans garmin_token pour plus de robustesse
         current_user.garmin_token = json.dumps(token_dict)
         current_user.garmin_refresh_token = token_dict.get("refresh_token")
@@ -59,12 +63,27 @@ async def garmin_login(
         
         return GarminStatusResponse(
             is_connected=True,
-            garmin_email=email
+            garmin_email=request.email
         )
         
-    except Exception as e:
+    except GarminConnectTooManyRequestsError:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Garmin Connect is rate limiting requests. Please wait a few minutes before trying again."
+        )
+    except GarminConnectAuthenticationError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Garmin Connect credentials. Please check your email and password."
+        )
+    except GarminConnectConnectionError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Could not connect to Garmin Connect services. Please try again later."
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Garmin authentication failed: {str(e)}"
         )
 

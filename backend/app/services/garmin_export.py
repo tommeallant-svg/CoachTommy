@@ -13,6 +13,7 @@ Le fichier généré s'importe dans Garmin Connect (navigateur web) :
 import os
 import tempfile
 from datetime import datetime
+from .garmin_utils import pace_str_to_speed_ms
 
 from fit_tool.fit_file_builder import FitFileBuilder
 from fit_tool.profile.messages.file_id_message import FileIdMessage
@@ -28,23 +29,6 @@ from fit_tool.profile.profile_type import (
 )
 
 
-def pace_str_to_speed_ms(pace):
-    """
-    Convertit une allure 'M:SS' (min/km) en vitesse m/s.
-    Retourne None si l'allure est absente ou invalide.
-    """
-    if not pace or not isinstance(pace, str):
-        return None
-    try:
-        parts = pace.strip().split(":")
-        minutes = int(parts[0])
-        seconds = int(parts[1]) if len(parts) > 1 else 0
-        total_seconds = minutes * 60 + seconds
-        if total_seconds <= 0:
-            return None
-        return 1000.0 / total_seconds
-    except (ValueError, IndexError):
-        return None
 
 
 def intensity_for_interval(interval_type):
