@@ -33,12 +33,6 @@ class GarminClient:
                 # Si le login via token échoue (ex: expiré), on marque comme non authentifié
                 print(f"Garmin token login failed: {e}")
                 self.is_authenticated = False
-                # Fallback minimal: on injecte quand même les headers au cas où
-                self.client.login_token_store = token_dict
-                if token_dict.get("access_token"):
-                    self.client.session.headers.update({
-                        "Authorization": f"Bearer {token_dict.get('access_token')}"
-                    })
         elif email and password:
             # Sinon, créer un nouveau client avec email/password
             self.client = Garmin(email, password)
@@ -59,7 +53,7 @@ class GarminClient:
             
         self.client.login()
         self.is_authenticated = True
-        self.email = self.client.client_email
+        self.email = self.client.username
         return self.get_token_dict()
 
     def get_token_dict(self):

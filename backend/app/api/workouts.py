@@ -258,7 +258,7 @@ async def push_workout_to_garmin(workout_id: int, db: Session = Depends(get_db),
         
         # Vérifier si on est bien authentifié après initialisation
         if not garmin_client.is_authenticated:
-            raise Exception("Not authenticated (token expired)")
+            raise Exception("Not authenticated. Please reconnect your Garmin account in settings.")
 
         # Push workout to Garmin
         push_workout(db_workout, garmin_client)
