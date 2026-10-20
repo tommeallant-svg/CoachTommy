@@ -49,8 +49,10 @@ async def garmin_login(
             )
         
         # Store tokens in database
+        import json
         current_user.garmin_email = email
-        current_user.garmin_token = token_dict.get("access_token")
+        # On stocke le dictionnaire complet en JSON dans garmin_token pour plus de robustesse
+        current_user.garmin_token = json.dumps(token_dict)
         current_user.garmin_refresh_token = token_dict.get("refresh_token")
         db.commit()
         db.refresh(current_user)

@@ -242,15 +242,33 @@ async def push_workout_to_garmin(workout_id: int, db: Session = Depends(get_db),
     
     try:
         # Initialize Garmin client with stored tokens
-        token_dict = {
-            "access_token": current_user.garmin_token,
-            "refresh_token": current_user.garmin_refresh_token,
-            "token_type": "Bearer"
-        }
+        import json
+        try:
+            # Essayer de désérialiser si c'est du JSON (nouveau format)
+            token_dict = json.loads(current_user.garmin_token)
+        except (json.JSONDecodeError, TypeError):
+            # Fallback vers l'ancien format (token simple)
+            token_dict = {
+                "access_token": current_user.garmin_token,
+                "refresh_token": current_user.garmin_refresh_token,
+                "token_type": "Bearer"
+            }
+            
         garmin_client = GarminClient(token_dict=token_dict)
         
+        # Vérifier si on est bien authentifié après initialisation
+        if not garmin_client.is_authenticated:
+            raise Exception("Not authenticated (token expired)")
+
         # Push workout to Garmin
         push_workout(db_workout, garmin_client)
+        
+        # Si le push a réussi, on vérifie si les tokens ont été rafraîchis
+        new_tokens = garmin_client.get_token_dict()
+        if new_tokens and json.dumps(new_tokens) != current_user.garmin_token:
+            current_user.garmin_token = json.dumps(new_tokens)
+            current_user.garmin_refresh_token = new_tokens.get("refresh_token")
+            db.commit()
         
         return {"status": "ok", "message": "Workout pushed to Garmin Connect successfully"}
         
