@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
 
 class WorkoutBase(BaseModel):
+    sport: str = "running"
     workout_type: str
     category: Optional[str] = None
     name: str
@@ -28,6 +29,7 @@ class WorkoutCreate(WorkoutBase):
     pass
 
 class WorkoutUpdate(BaseModel):
+    sport: Optional[str] = None
     workout_type: Optional[str] = None
     category: Optional[str] = None
     name: Optional[str] = None

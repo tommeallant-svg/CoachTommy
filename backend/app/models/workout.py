@@ -7,6 +7,7 @@ class Workout(Base):
     __tablename__ = "workouts"
 
     id = Column(Integer, primary_key=True, index=True)
+    sport = Column(String, default="running", index=True) # running, cycling
     workout_type = Column(String, index=True)  # Endurance, Tempo, Seuil, VO2 Max, Sprint, Libre
     category = Column(String, index=True) # Endurance, Libre, Fractionné, Sortie Longue, Trail
     name = Column(String, index=True)

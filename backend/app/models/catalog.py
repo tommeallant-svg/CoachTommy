@@ -5,6 +5,7 @@ class CatalogWorkout(Base):
     __tablename__ = "catalog_workouts"
 
     id = Column(Integer, primary_key=True, index=True)
+    sport = Column(String, default="running", index=True) # running, cycling
     name = Column(String, index=True)
     workout_type = Column(String) # tempo, VO2Max, etc.
     category = Column(String) # Fractionné

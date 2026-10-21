@@ -27,16 +27,18 @@ import {
   LayoutList,
   ExternalLink,
   X,
-  CheckCircle2,
-  Clock,
-  ArrowRightLeft,
-  Activity,
-  AlignLeft,
+  CheckCircle2, 
+  Clock, 
+  ArrowRightLeft, 
+  Activity, 
+  Zap,
+  AlignLeft, 
   Plus,
   LogOut,
   Users,
   Dumbbell,
-  Watch
+  Watch,
+  Droplets
 } from 'lucide-react';
 import Link from 'next/link';
 import { Workout } from '@/types/workout';
@@ -48,6 +50,9 @@ import {
   getAuthUser 
 } from '@/lib/api';
 import GarminAuthModal from '@/components/GarminAuthModal';
+import MenstrualCycleModal from '@/components/MenstrualCycleModal';
+import AthleteStatsModal from '@/components/AthleteStatsModal';
+import { User } from '@/types/user';
 import {
   DndContext,
   DragEndEvent,
@@ -144,7 +149,7 @@ function CalendarPageContent() {
   const searchParams = useSearchParams();
   const athleteId = searchParams.get('athleteId');
   
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<'month' | 'week'>('month');
   const [workouts, setWorkouts] = useState<Workout[]>([]);
@@ -152,6 +157,8 @@ function CalendarPageContent() {
   const [isSideMenuOpen, setIsSideMenuOpen] = useState(false);
   const [currentPlan, setCurrentPlan] = useState<any>(null);
   const [showGarminAuthModal, setShowGarminAuthModal] = useState(false);
+  const [showMenstrualModal, setShowMenstrualModal] = useState(false);
+  const [showStatsModal, setShowStatsModal] = useState(false);
   const [garminStatus, setGarminStatus] = useState({ is_connected: false, garmin_email: '' });
 
   const sensors = useSensors(
@@ -171,16 +178,13 @@ function CalendarPageContent() {
     const authUser = getAuthUser();
     setUser(authUser);
 
-    if (authUser && !authUser.id) {
-      fetchWithAuth('/api/auth/me')
-        .then(res => res.json())
-        .then(data => {
-          const updatedUser = { ...authUser, id: data.id };
-          localStorage.setItem('user', JSON.stringify(updatedUser));
-          setUser(updatedUser);
-        })
-        .catch(err => console.error("Erreur récup user:", err));
-    }
+    fetchWithAuth('/api/auth/me')
+      .then(res => res.json())
+      .then(data => {
+        setUser(data);
+        localStorage.setItem('user', JSON.stringify(data));
+      })
+      .catch(err => console.error("Erreur récup user:", err));
 
     fetchWorkouts(athleteId);
     fetchCurrentPlan(athleteId);
@@ -196,6 +200,19 @@ function CalendarPageContent() {
       }
     } catch (err) {
       console.error('Failed to check Garmin status:', err);
+    }
+  };
+
+  const fetchUserData = async () => {
+    try {
+      const response = await fetchWithAuth('/api/auth/me');
+      if (response.ok) {
+        const data = await response.json();
+        setUser(data);
+        localStorage.setItem('user', JSON.stringify(data));
+      }
+    } catch (err) {
+      console.error('Failed to fetch user data:', err);
     }
   };
 
@@ -383,6 +400,32 @@ function CalendarPageContent() {
         >
           <Watch className={`w-4 h-4 ${garminStatus.is_connected ? 'text-blue-600' : ''}`} />
           <span>Garmin</span>
+        </button>
+
+        <button
+          onClick={() => setShowMenstrualModal(true)}
+          className={`flex items-center gap-2 px-4 md:px-6 py-3 rounded-2xl font-black uppercase text-xs tracking-widest transition-all ${
+            user?.last_period_date
+            ? 'bg-red-50 text-red-600 border border-red-100 hover:bg-red-100' 
+            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+          }`}
+          title="Suivi du cycle menstruel"
+        >
+          <Droplets className={`w-4 h-4 ${user?.last_period_date ? 'text-red-600' : ''}`} />
+          <span>Cycle</span>
+        </button>
+
+        <button
+          onClick={() => setShowStatsModal(true)}
+          className={`flex items-center gap-2 px-4 md:px-6 py-3 rounded-2xl font-black uppercase text-xs tracking-widest transition-all ${
+            user?.vma || user?.ftp
+            ? 'bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100' 
+            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+          }`}
+          title="Statistiques de performance"
+        >
+          <Zap className={`w-4 h-4 ${user?.vma || user?.ftp ? 'text-blue-600' : ''}`} />
+          <span>Profil</span>
         </button>
 
         <button
@@ -621,6 +664,20 @@ function CalendarPageContent() {
         onSuccess={checkGarminStatus}
         currentEmail={garminStatus.garmin_email}
         isConnected={garminStatus.is_connected}
+      />
+
+      <MenstrualCycleModal
+        isOpen={showMenstrualModal}
+        onClose={() => setShowMenstrualModal(false)}
+        onSuccess={fetchUserData}
+        currentUser={user}
+      />
+
+      <AthleteStatsModal
+        isOpen={showStatsModal}
+        onClose={() => setShowStatsModal(false)}
+        onSuccess={fetchUserData}
+        currentUser={user}
       />
     </main>
   );

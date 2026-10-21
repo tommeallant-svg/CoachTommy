@@ -15,6 +15,8 @@ router = APIRouter(prefix="/coach", tags=["coach"])
 class AthleteSummary(BaseModel):
     id: int
     email: str
+    vma: float = None
+    ftp: int = None
     race_name: str = "Aucun"
     duration_weeks: int = 0
     sessions_per_week: int = 0
@@ -30,7 +32,12 @@ def get_athletes_summary(db: Session = Depends(get_db), coach: User = Depends(ge
     
     for athlete in athletes:
         plan = db.query(Plan).filter(Plan.athlete_id == athlete.id, Plan.is_archived == False).first()
-        summary = AthleteSummary(id=athlete.id, email=athlete.email)
+        summary = AthleteSummary(
+            id=athlete.id, 
+            email=athlete.email,
+            vma=athlete.vma,
+            ftp=athlete.ftp
+        )
         
         if plan:
             summary.race_name = plan.race_name

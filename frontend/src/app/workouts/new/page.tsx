@@ -34,9 +34,11 @@ function NewManualWorkoutPageContent() {
   const [catalogWorkouts, setCatalogWorkouts] = useState<any[]>([]);
   const [loadingCatalog, setLoadingCatalog] = useState(false);
   const [athleteVma, setAthleteVma] = useState<number | null>(null);
+  const [athleteFtp, setAthleteFtp] = useState<number | null>(null);
 
   const [formData, setFormData] = useState({
     name: '',
+    sport: 'running' as 'running' | 'cycling',
     duration_minutes: 45,
     distance_km: 7.5,
     workout_type: 'Libre',
@@ -71,23 +73,33 @@ function NewManualWorkoutPageContent() {
 
   useEffect(() => {
     if (formData.athlete_id) {
-      fetchAthleteVma(formData.athlete_id);
+      fetchAthleteStats(formData.athlete_id);
     } else {
       setAthleteVma(null);
+      setAthleteFtp(null);
     }
-  }, [formData.athlete_id]);
+  }, [formData.athlete_id, athletes]); // Add athletes to dependencies to get stats once loaded
 
-  const fetchAthleteVma = async (athleteId: number) => {
+  const fetchAthleteStats = async (athleteId: number) => {
+    if (user?.role === 'coach' && athletes.length > 0) {
+      const athlete = athletes.find(a => a.id === athleteId);
+      if (athlete) {
+        setAthleteVma(athlete.vma);
+        setAthleteFtp(athlete.ftp);
+        return;
+      }
+    }
+    
+    // Fallback or for athlete himself
     try {
-      const res = await fetchWithAuth(`/api/plans/current?athlete_id=${athleteId}`);
+      const res = await fetchWithAuth(`/api/auth/me`);
       if (res.ok) {
         const data = await res.json();
-        if (data && data.estimated_vma) {
-          setAthleteVma(data.estimated_vma);
-        }
+        setAthleteVma(data.vma);
+        setAthleteFtp(data.ftp);
       }
     } catch (err) {
-      console.error('Erreur lors de la récupération de la VMA:', err);
+      console.error('Erreur lors de la récupération des statistiques:', err);
     }
   };
 
@@ -125,27 +137,39 @@ function NewManualWorkoutPageContent() {
     return `${mm}:${ss.toString().padStart(2, '0')}`;
   };
 
-  const convertVmaPercentageToPace = (vmaMinKm: number, percentage: number): string => {
+  const convertVmaPercentageToPace = (vmaKmH: number, percentage: number): string => {
     if (percentage <= 0) return "0:00";
-    const paceMinKm = vmaMinKm / (percentage / 100);
+    const speedKmH = vmaKmH * (percentage / 100);
+    const paceMinKm = 60 / speedKmH;
     return formatMinutesToMMSS(paceMinKm);
   };
 
   const handleSelectFromCatalog = async (catalogWorkout: any) => {
     const scheme = catalogWorkout.scheme || [];
+    const isCycling = catalogWorkout.sport === 'cycling';
     let totalDuration = 0;
+    
     const processedScheme = scheme.map((block: any) => {
       const repetitions = block.repetitions || 1;
       const processedIntervals = block.intervals?.map((interval: any) => {
-        if (interval.pace_vma_min !== undefined && interval.pace_vma_max !== undefined && athleteVma) {
-          return {
-            ...interval,
-            pace_min: convertVmaPercentageToPace(athleteVma, interval.pace_vma_min),
-            pace_max: convertVmaPercentageToPace(athleteVma, interval.pace_vma_max)
-          };
+        const newInterval = { ...interval };
+        
+        if (isCycling && athleteFtp) {
+          if (interval.power_ftp_min !== undefined) {
+            newInterval.power_watt_min = Math.round(athleteFtp * (interval.power_ftp_min / 100));
+          }
+          if (interval.power_ftp_max !== undefined) {
+            newInterval.power_watt_max = Math.round(athleteFtp * (interval.power_ftp_max / 100));
+          }
+        } else if (!isCycling && athleteVma) {
+          if (interval.pace_vma_min !== undefined && interval.pace_vma_max !== undefined) {
+            newInterval.pace_min = convertVmaPercentageToPace(athleteVma, interval.pace_vma_min);
+            newInterval.pace_max = convertVmaPercentageToPace(athleteVma, interval.pace_vma_max);
+          }
         }
-        return interval;
+        return newInterval;
       });
+      
       if (processedIntervals) {
         processedIntervals.forEach((interval: any) => {
           if (interval.duration) {
@@ -159,6 +183,7 @@ function NewManualWorkoutPageContent() {
     setFormData({
       ...formData,
       name: catalogWorkout.name,
+      sport: catalogWorkout.sport || 'running',
       workout_type: catalogWorkout.workout_type,
       duration_minutes: Math.round(totalDuration),
       difficulty_level: catalogWorkout.perceived_difficulty || 5,
@@ -171,7 +196,7 @@ function NewManualWorkoutPageContent() {
 
   const handleOpenCatalog = async () => {
     if (!formData.athlete_id && user?.role === 'coach') {
-      alert("Veuillez d'abord sélectionner un athlète pour adapter les allures du catalogue à sa VMA.");
+      alert("Veuillez d'abord sélectionner un athlète pour adapter les allures du catalogue à ses statistiques.");
       return;
     }
     if (catalogWorkouts.length === 0) {
@@ -256,15 +281,28 @@ function NewManualWorkoutPageContent() {
               </div>
             )}
 
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 ml-1">Nom de la séance</label>
-              <input
-                type="text"
-                placeholder={user?.role === 'coach' ? "Ex: Séance de VMA, Footing..." : "Séance manuelle"}
-                className="w-full px-6 py-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-black focus:bg-white outline-none transition-all font-bold"
-                value={formData.name}
-                onChange={e => setFormData({...formData, name: e.target.value})}
-              />
+            <div className="grid grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 ml-1">Discipline</label>
+                <select
+                  className="w-full px-6 py-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-black focus:bg-white outline-none transition-all font-bold appearance-none cursor-pointer"
+                  value={formData.sport}
+                  onChange={e => setFormData({...formData, sport: e.target.value as 'running' | 'cycling'})}
+                >
+                  <option value="running">Course à pied</option>
+                  <option value="cycling">Cyclisme</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 ml-1">Nom de la séance</label>
+                <input
+                  type="text"
+                  placeholder={user?.role === 'coach' ? "Ex: Séance de VMA, Footing..." : "Séance manuelle"}
+                  className="w-full px-6 py-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-black focus:bg-white outline-none transition-all font-bold"
+                  value={formData.name}
+                  onChange={e => setFormData({...formData, name: e.target.value})}
+                />
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-6">

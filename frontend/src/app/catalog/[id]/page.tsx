@@ -36,6 +36,7 @@ export default function CatalogEditPage() {
   const [saving, setSaving] = useState(false);
   const [workout, setWorkout] = useState<Partial<CatalogWorkout>>({
     name: '',
+    sport: 'running',
     workout_type: 'Fractionné',
     category: 'Fractionné',
     perceived_difficulty: 5,
@@ -198,6 +199,17 @@ export default function CatalogEditPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Discipline</label>
+              <select 
+                value={workout.sport} 
+                onChange={e => setWorkout({...workout, sport: e.target.value as 'running' | 'cycling'})}
+                className="w-full bg-gray-50 border-none rounded-2xl px-6 py-4 font-bold text-black outline-none focus:ring-2 focus:ring-black transition-all appearance-none"
+              >
+                <option value="running">Course à pied</option>
+                <option value="cycling">Cyclisme</option>
+              </select>
+            </div>
+            <div className="space-y-2">
               <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Nom de la séance</label>
               <input 
                 type="text" 
@@ -341,21 +353,21 @@ export default function CatalogEditPage() {
 
                       <div className="md:col-span-5 space-y-2">
                         <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 flex items-center gap-1">
-                          <Zap className="w-3 h-3" /> Allure (% VMA Min / Max)
+                          <Zap className="w-3 h-3" /> {workout.sport === 'cycling' ? 'Puissance (% FTP Min / Max)' : 'Allure (% VMA Min / Max)'}
                         </label>
                         <div className="flex items-center gap-2">
                           <input 
                             type="number" 
-                            value={interval.pace_vma_min} 
-                            onChange={e => updateInterval(bIdx, iIdx, { pace_vma_min: parseInt(e.target.value) })}
+                            value={workout.sport === 'cycling' ? (interval.power_ftp_min ?? '') : (interval.pace_vma_min ?? '')} 
+                            onChange={e => updateInterval(bIdx, iIdx, workout.sport === 'cycling' ? { power_ftp_min: parseInt(e.target.value) } : { pace_vma_min: parseInt(e.target.value) })}
                             className="w-full bg-white border-none rounded-xl px-4 py-3 font-bold text-black outline-none focus:ring-2 focus:ring-black transition-all"
                             placeholder="Min"
                           />
                           <span className="text-gray-300 font-black">-</span>
                           <input 
                             type="number" 
-                            value={interval.pace_vma_max} 
-                            onChange={e => updateInterval(bIdx, iIdx, { pace_vma_max: parseInt(e.target.value) })}
+                            value={workout.sport === 'cycling' ? (interval.power_ftp_max ?? '') : (interval.pace_vma_max ?? '')} 
+                            onChange={e => updateInterval(bIdx, iIdx, workout.sport === 'cycling' ? { power_ftp_max: parseInt(e.target.value) } : { pace_vma_max: parseInt(e.target.value) })}
                             className="w-full bg-white border-none rounded-xl px-4 py-3 font-bold text-black outline-none focus:ring-2 focus:ring-black transition-all"
                             placeholder="Max"
                           />

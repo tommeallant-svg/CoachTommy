@@ -107,13 +107,10 @@ export default function CatalogPage() {
     if (!selectedAthleteId || !assigningWorkout) return;
     setIsAssigning(true);
     try {
-      // Récupérer la VMA de l'athlète
-      const planRes = await fetchWithAuth(`/api/plans/current?athlete_id=${selectedAthleteId}`);
-      let athleteVma = 5.0;
-      if (planRes.ok) {
-        const planData = await planRes.json();
-        if (planData) athleteVma = planData.estimated_vma;
-      }
+      // Trouver l'athlète sélectionné dans la liste pour avoir sa VMA et FTP
+      const athlete = athletes.find(a => a.id === selectedAthleteId);
+      const athleteVma = athlete?.vma || 15.0; // km/h par défaut si non renseigné
+      const athleteFtp = athlete?.ftp || 200; // Watts par défaut si non renseigné
 
       // Préparer la séance
       const formatMinutesToMMSS = (minutes: number): string => {
@@ -122,26 +119,47 @@ export default function CatalogPage() {
         const ss = totalSeconds % 60;
         return `${mm}:${ss.toString().padStart(2, '0')}`;
       };
-      const convertVmaPercentageToPace = (vmaMinKm: number, percentage: number): string => {
+
+      const convertVmaPercentageToPace = (vmaKmH: number, percentage: number): string => {
         if (percentage <= 0) return "0:00";
-        const paceMinKm = vmaMinKm / (percentage / 100);
+        // VMA est en km/h. On veut l'allure en min/km.
+        // allure (min/km) = 60 / vitesse (km/h)
+        const speedKmH = vmaKmH * (percentage / 100);
+        const paceMinKm = 60 / speedKmH;
         return formatMinutesToMMSS(paceMinKm);
       };
 
+      const convertFtpPercentageToWatts = (ftp: number, percentage: number): number => {
+        return Math.round(ftp * (percentage / 100));
+      };
+
       const scheme = assigningWorkout.scheme || [];
+      const isCycling = assigningWorkout.sport === 'cycling';
       let totalDuration = 0;
+
       const processedScheme = scheme.map((block: any) => {
         const repetitions = block.repetitions || 1;
         const processedIntervals = block.intervals?.map((interval: any) => {
-          if (interval.pace_vma_min !== undefined && interval.pace_vma_max !== undefined) {
-            return {
-              ...interval,
-              pace_min: convertVmaPercentageToPace(athleteVma, interval.pace_vma_min),
-              pace_max: convertVmaPercentageToPace(athleteVma, interval.pace_vma_max)
-            };
+          const newInterval = { ...interval };
+
+          if (isCycling) {
+            if (interval.power_ftp_min !== undefined) {
+              newInterval.power_watt_min = convertFtpPercentageToWatts(athleteFtp, interval.power_ftp_min);
+            }
+            if (interval.power_ftp_max !== undefined) {
+              newInterval.power_watt_max = convertFtpPercentageToWatts(athleteFtp, interval.power_ftp_max);
+            }
+          } else {
+            if (interval.pace_vma_min !== undefined) {
+              newInterval.pace_min = convertVmaPercentageToPace(athleteVma, interval.pace_vma_min);
+            }
+            if (interval.pace_vma_max !== undefined) {
+              newInterval.pace_max = convertVmaPercentageToPace(athleteVma, interval.pace_vma_max);
+            }
           }
-          return interval;
+          return newInterval;
         });
+
         if (processedIntervals) {
           processedIntervals.forEach((interval: any) => {
             if (interval.duration) totalDuration += interval.duration * repetitions;
@@ -153,6 +171,7 @@ export default function CatalogPage() {
       const res = await fetchWithAuth('/api/workouts', {
         method: 'POST',
         body: JSON.stringify({
+          sport: assigningWorkout.sport || 'running',
           name: assigningWorkout.name,
           workout_type: assigningWorkout.workout_type,
           category: assigningWorkout.category,

@@ -1,5 +1,6 @@
 from typing import Optional
 from pydantic import BaseModel
+from datetime import date
 
 class UserBase(BaseModel):
     email: str
@@ -10,9 +11,23 @@ class UserCreate(UserBase):
 
 class UserResponse(UserBase):
     id: int
+    last_period_date: Optional[date] = None
+    cycle_length: Optional[int] = 28
+    period_length: Optional[int] = 5
+    vma: Optional[float] = None
+    ftp: Optional[int] = None
 
     class Config:
         from_attributes = True
+
+class UserUpdateMenstrualCycle(BaseModel):
+    last_period_date: date
+    cycle_length: int = 28
+    period_length: int = 5
+
+class UserUpdateStats(BaseModel):
+    vma: Optional[float] = None
+    ftp: Optional[int] = None
 
 class Token(BaseModel):
     access_token: str

@@ -38,13 +38,11 @@ const formatMinutesToMMSS = (minutes: number): string => {
 };
 
 // Convertir %VMA en allure réelle (mm:ss) en fonction de la VMA de l'athlète
-// Note: %VMA est un pourcentage de VITESSE, pas d'allure
-// VMA de 5:00/km = 12 km/h
-// 60% de VMA = 7.2 km/h = 60/7.2 = 8:20/km
-// Formule: allure = vma_min_km / (%VMA / 100)
-const convertVmaPercentageToPace = (vmaMinKm: number, percentage: number): string => {
+// VMA est maintenant stockée en km/h dans le profil
+const convertVmaPercentageToPace = (vmaKmH: number, percentage: number): string => {
   if (percentage <= 0) return "0:00";
-  const paceMinKm = vmaMinKm / (percentage / 100);
+  const speedKmH = vmaKmH * (percentage / 100);
+  const paceMinKm = 60 / speedKmH;
   return formatMinutesToMMSS(paceMinKm);
 };
 
@@ -64,6 +62,7 @@ export default function WorkoutDetailPage() {
 
   const [editFormData, setEditFormData] = useState({
     name: '',
+    sport: 'running' as 'running' | 'cycling',
     workout_type: '',
     duration_minutes: 0,
     difficulty_level: 0,
@@ -77,6 +76,7 @@ export default function WorkoutDetailPage() {
   const [catalogWorkouts, setCatalogWorkouts] = useState<any[]>([]);
   const [loadingCatalog, setLoadingCatalog] = useState(false);
   const [athleteVma, setAthleteVma] = useState<number | null>(null);
+  const [athleteFtp, setAthleteFtp] = useState<number | null>(null);
   const [showGarminAuthModal, setShowGarminAuthModal] = useState(false);
   const [garminConnected, setGarminConnected] = useState(false);
   const [garminEmail, setGarminEmail] = useState<string | null>(null);
@@ -212,6 +212,7 @@ export default function WorkoutDetailPage() {
       }
       setEditFormData({
         name: data.name,
+        sport: data.sport || 'running',
         workout_type: data.workout_type,
         duration_minutes: data.duration_minutes,
         difficulty_level: data.difficulty_level,
@@ -221,12 +222,33 @@ export default function WorkoutDetailPage() {
         athlete_id: data.athlete_id
       });
       
-      // Récupérer la VMA de l'athlète depuis le plan
-      if (data.plan_id) {
-        const planResponse = await fetchWithAuth(`/api/plans/${data.plan_id}`);
-        if (planResponse.ok) {
-          const planData = await planResponse.json();
-          setAthleteVma(planData.estimated_vma);
+      // Récupérer les stats de l'athlète
+      if (data.athlete_id) {
+        const authUser = getAuthUser();
+        // Si c'est un coach, il faudrait un endpoint pour les stats de l'athlète
+        // Mais en fait on a déjà l'athleteId, et si on est coach on a accès à /api/coach/athletes
+        
+        // Pour faire simple, on va essayer de récupérer via le plan si dispo, 
+        // ou via un nouvel endpoint si on veut être propre.
+        // Vu que j'ai mis à jour AthleteSummary dans /api/coach/athletes, on peut l'utiliser.
+        if (authUser?.role === 'coach') {
+          const athletesRes = await fetchWithAuth('/api/coach/athletes');
+          if (athletesRes.ok) {
+            const athletesData = await athletesRes.json();
+            const currentAthlete = athletesData.find((a: any) => a.id === data.athlete_id);
+            if (currentAthlete) {
+              setAthleteVma(currentAthlete.vma);
+              setAthleteFtp(currentAthlete.ftp);
+            }
+          }
+        } else {
+          // C'est l'athlète lui-même
+          const meRes = await fetchWithAuth('/api/auth/me');
+          if (meRes.ok) {
+            const meData = await meRes.json();
+            setAthleteVma(meData.vma);
+            setAthleteFtp(meData.ftp);
+          }
         }
       }
     } catch (error) {
@@ -252,23 +274,31 @@ export default function WorkoutDetailPage() {
   };
 
   const handleSelectFromCatalog = async (catalogWorkout: any) => {
-    // Convertir le scheme du catalogue au format workout avec la VMA de l'athlète
+    // Convertir le scheme du catalogue au format workout avec les stats de l'athlète
     const scheme = catalogWorkout.scheme || [];
+    const isCycling = catalogWorkout.sport === 'cycling';
     
-    // Calculer la durée totale estimée et convertir les %VMA en allures réelles
+    // Calculer la durée totale estimée et convertir les % en valeurs réelles
     let totalDuration = 0;
     const processedScheme = scheme.map((block: any) => {
       const repetitions = block.repetitions || 1;
       const processedIntervals = block.intervals?.map((interval: any) => {
-        // Si l'intervalle a des %VMA, les convertir en allures réelles
-        if (interval.pace_vma_min !== undefined && interval.pace_vma_max !== undefined && athleteVma) {
-          return {
-            ...interval,
-            pace_min: convertVmaPercentageToPace(athleteVma, interval.pace_vma_min),
-            pace_max: convertVmaPercentageToPace(athleteVma, interval.pace_vma_max)
-          };
+        const newInterval = { ...interval };
+        
+        if (isCycling && athleteFtp) {
+          if (interval.power_ftp_min !== undefined) {
+            newInterval.power_watt_min = Math.round(athleteFtp * (interval.power_ftp_min / 100));
+          }
+          if (interval.power_ftp_max !== undefined) {
+            newInterval.power_watt_max = Math.round(athleteFtp * (interval.power_ftp_max / 100));
+          }
+        } else if (!isCycling && athleteVma) {
+          if (interval.pace_vma_min !== undefined && interval.pace_vma_max !== undefined) {
+            newInterval.pace_min = convertVmaPercentageToPace(athleteVma, interval.pace_vma_min);
+            newInterval.pace_max = convertVmaPercentageToPace(athleteVma, interval.pace_vma_max);
+          }
         }
-        return interval;
+        return newInterval;
       });
       
       // Calculer la durée pour ce block
@@ -286,6 +316,7 @@ export default function WorkoutDetailPage() {
     setEditFormData({
       ...editFormData,
       name: catalogWorkout.name,
+      sport: catalogWorkout.sport || 'running',
       workout_type: catalogWorkout.workout_type,
       duration_minutes: Math.round(totalDuration),
       difficulty_level: catalogWorkout.perceived_difficulty || 5,
@@ -438,8 +469,8 @@ export default function WorkoutDetailPage() {
                 <button
                   type="button"
                   onClick={handleOpenCatalog}
-                  disabled={!athleteVma}
-                  title={!athleteVma ? "La VMA de l'athlète n'est pas disponible. Associez cette séance à un plan d'entraînement." : undefined}
+                  disabled={!athleteVma && !athleteFtp}
+                  title={(!athleteVma && !athleteFtp) ? "Les statistiques de l'athlète (VMA/FTP) ne sont pas disponibles." : undefined}
                   className="flex items-center gap-2 bg-white text-black border border-gray-200 px-4 py-2 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-black hover:text-white transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <BookOpen className="w-4 h-4" />
@@ -447,6 +478,17 @@ export default function WorkoutDetailPage() {
                 </button>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 ml-1">Discipline</label>
+                  <select
+                    className="w-full px-6 py-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-black focus:bg-white outline-none transition-all font-bold appearance-none cursor-pointer"
+                    value={editFormData.sport}
+                    onChange={e => setEditFormData({...editFormData, sport: e.target.value as 'running' | 'cycling'})}
+                  >
+                    <option value="running">Course à pied</option>
+                    <option value="cycling">Cyclisme</option>
+                  </select>
+                </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 ml-1">Nom de la séance</label>
                   <input
@@ -674,7 +716,11 @@ export default function WorkoutDetailPage() {
                                     <div className="font-black uppercase tracking-tighter text-sm md:text-xl mb-0.5 md:mb-1">{interval.type}</div>
                                     <div className="text-gray-400 font-bold text-[9px] md:text-[10px] uppercase tracking-widest flex items-center gap-2">
                                       <span className="w-2 h-[2px] bg-yellow-400" />
-                                      Allure: {interval.pace_min} {interval.pace_max !== interval.pace_min ? `- ${interval.pace_max}` : ''}
+                                      {workout.sport === 'cycling' ? (
+                                        <>Puissance: {interval.power_watt_min}W {interval.power_watt_max && interval.power_watt_max !== interval.power_watt_min ? `- ${interval.power_watt_max}W` : ''}</>
+                                      ) : (
+                                        <>Allure: {interval.pace_min} {interval.pace_max && interval.pace_max !== interval.pace_min ? `- ${interval.pace_max}` : ''}</>
+                                      )}
                                     </div>
                                   </div>
                                 </div>

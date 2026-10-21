@@ -25,13 +25,22 @@ L'application sera accessible sur :
 - Backend API : http://localhost:8000
 - Documentation API : http://localhost:8000/docs
 
-## Initialisation de la base de données (Seeding)
+## Mise à jour et Initialisation
 
-Pour peupler la base de données PostgreSQL avec des données de test, exécutez la commande suivante une fois que les services sont lancés :
+Si vous avez mis à jour l'application et que de nouveaux champs ont été ajoutés à la base de données, vous devrez peut-être réinitialiser le volume de la base de données :
+
+```bash
+docker-compose down -v
+docker-compose up --build
+```
+
+Pour peupler la base de données avec les nouvelles séances de vélo et données de test, exécutez :
 
 ```bash
 docker-compose exec backend python seed.py
 ```
+
+Vous pouvez aussi lancer le backend avec la variable d'environnement `SEED_DB=true` pour automatiser cette étape.
 
 ## Déploiement Kubernetes
 

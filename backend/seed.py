@@ -90,6 +90,31 @@ def seed():
                     "intervals": [{"type": "Retour calme", "duration": 10, "pace_vma_min": 65, "pace_vma_max": 65}]
                 }
             ]
+        },
+        {
+            "name": "SST (Sweet Spot Training)",
+            "sport": "cycling",
+            "workout_type": "Tempo",
+            "category": "Fractionné",
+            "description": "Travail en Sweet Spot (88-94% FTP) pour augmenter la puissance au seuil et l'endurance musculaire.",
+            "perceived_difficulty": 7,
+            "scheme": [
+                {
+                    "repetitions": 1,
+                    "intervals": [{"type": "Echauffement", "duration": 15, "power_ftp_min": 50, "power_ftp_max": 60}]
+                },
+                {
+                    "repetitions": 2,
+                    "intervals": [
+                        {"type": "Sweet Spot", "duration": 20, "power_ftp_min": 90, "power_ftp_max": 90},
+                        {"type": "Récup", "duration": 5, "power_ftp_min": 55, "power_ftp_max": 55}
+                    ]
+                },
+                {
+                    "repetitions": 1,
+                    "intervals": [{"type": "Retour calme", "duration": 10, "power_ftp_min": 50, "power_ftp_max": 50}]
+                }
+            ]
         }
     ]
     for cw_data in catalog_workouts:

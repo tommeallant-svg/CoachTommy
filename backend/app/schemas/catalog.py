@@ -2,6 +2,7 @@ from typing import List, Any, Optional
 from pydantic import BaseModel
 
 class CatalogWorkoutBase(BaseModel):
+    sport: str = "running"
     name: str
     workout_type: str
     category: str
@@ -13,6 +14,7 @@ class CatalogWorkoutCreate(CatalogWorkoutBase):
     pass
 
 class CatalogWorkoutUpdate(BaseModel):
+    sport: Optional[str] = None
     name: Optional[str] = None
     workout_type: Optional[str] = None
     category: Optional[str] = None
