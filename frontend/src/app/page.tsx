@@ -401,20 +401,6 @@ function CalendarPageContent() {
           <Watch className={`w-4 h-4 ${garminStatus.is_connected ? 'text-blue-600' : ''}`} />
           <span>Garmin</span>
         </button>
-
-        <button
-          onClick={() => setShowMenstrualModal(true)}
-          className={`flex items-center gap-2 px-4 md:px-6 py-3 rounded-2xl font-black uppercase text-xs tracking-widest transition-all ${
-            user?.last_period_date
-            ? 'bg-red-50 text-red-600 border border-red-100 hover:bg-red-100' 
-            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-          }`}
-          title="Suivi du cycle menstruel"
-        >
-          <Droplets className={`w-4 h-4 ${user?.last_period_date ? 'text-red-600' : ''}`} />
-          <span>Cycle</span>
-        </button>
-
         <button
           onClick={() => setShowStatsModal(true)}
           className={`flex items-center gap-2 px-4 md:px-6 py-3 rounded-2xl font-black uppercase text-xs tracking-widest transition-all ${
