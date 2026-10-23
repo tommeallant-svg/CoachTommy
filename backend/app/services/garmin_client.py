@@ -56,12 +56,15 @@ class GarminClient:
                 return tokens
             
         try:
-            self.client.login()
+            tokenstore = os.getenv("GARMINTOKENS", "~/.garminconnect")
+            print(tokenstore)
+            tokenstore_path = str(Path(tokenstore).expanduser())
+            print(tokenstore_path)
+            self.client.login(tokenstore_path)
             self.is_authenticated = True
             print("success login")
             print(self.client.username)
-            print(self.get_token_dict())
-            return self.get_token_dict()
+            return tokenstore_path
 
         except Exception as e:
             # Si le login via token échoue (ex: expiré), on marque comme non authentifié
