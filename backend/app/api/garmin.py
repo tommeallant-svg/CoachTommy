@@ -11,6 +11,7 @@ from ..models.user import User
 import os
 from pathlib import Path
 from ..auth import get_current_user
+from garminconnect import Garmin
 from ..services.garmin_client import GarminClient
 from garminconnect import (
     GarminConnectAuthenticationError,
@@ -116,6 +117,7 @@ async def garmin_status(
     
     tokenstore = os.getenv("GARMINTOKENS", "~/.garminconnect")
     tokenstore_path = str(Path(tokenstore).expanduser())
+    print("tokenstore_path")
     is_connected = False
     try:
         garmin = Garmin()
