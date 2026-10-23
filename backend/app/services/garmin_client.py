@@ -58,7 +58,9 @@ class GarminClient:
         try:
             self.client.login()
             self.is_authenticated = True
-            self.email = self.client.username
+            print("success login")
+            print(self.client.username)
+            print(self.get_token_dict())
             return self.get_token_dict()
 
         except Exception as e:
