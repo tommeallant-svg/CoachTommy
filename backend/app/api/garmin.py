@@ -44,9 +44,9 @@ async def garmin_login(
     try:
         # Create Garmin client and login
         garmin_client = GarminClient(email=request.email, password=request.password)
-        token_dict = garmin_client.login()
+        tokenstore_path = garmin_client.login()
         
-        if not token_dict:
+        if not tokenstore_path:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Failed to authenticate with Garmin Connect"
@@ -56,8 +56,6 @@ async def garmin_login(
         import json
         current_user.garmin_email = request.email
         # On stocke le dictionnaire complet en JSON dans garmin_token pour plus de robustesse
-        current_user.garmin_token = json.dumps(token_dict)
-        current_user.garmin_refresh_token = token_dict.get("refresh_token")
         db.commit()
         db.refresh(current_user)
         
@@ -113,7 +111,7 @@ async def garmin_status(
     """
     Check if user is connected to Garmin Connect.
     """
+    
     return GarminStatusResponse(
-        is_connected=current_user.garmin_token is not None,
         garmin_email=current_user.garmin_email
     )
