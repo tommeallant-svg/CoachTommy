@@ -21,6 +21,7 @@ class GarminClient:
         """
         self.email = email
         self._token_dict = token_dict
+        print(self)
         
         if token_dict:
             # Si on a des tokens, initialiser avec eux via la méthode native
@@ -37,6 +38,7 @@ class GarminClient:
                 self.is_authenticated = False
         elif email and password:
             # Sinon, créer un nouveau client avec email/password
+            print("try garmin email password")
             self.client = Garmin(email, password)
             self.is_authenticated = False
         else:
@@ -53,11 +55,18 @@ class GarminClient:
             if tokens:
                 return tokens
             
-        self.client.login()
-        self.is_authenticated = True
-        self.email = self.client.username
-        return self.get_token_dict()
+        try:
+            self.client.login()
+            self.is_authenticated = True
+            self.email = self.client.username
+            return self.get_token_dict()
 
+        except Exception as e:
+            # Si le login via token échoue (ex: expiré), on marque comme non authentifié
+            print(f"Garmin token login with password failed: {e}")
+            self.is_authenticated = False
+            return 0
+        
     def get_token_dict(self):
         """
         Retourne les tokens d'accès sous forme de dictionnaire.
