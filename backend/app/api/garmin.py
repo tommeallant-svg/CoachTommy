@@ -8,6 +8,7 @@ from typing import Optional
 from pydantic import BaseModel
 from ..database import get_db
 from ..models.user import User
+import os
 from ..auth import get_current_user
 from ..services.garmin_client import GarminClient
 from garminconnect import (
