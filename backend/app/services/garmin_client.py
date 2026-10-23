@@ -1,7 +1,7 @@
 import json
 import os
 from garminconnect import Garmin
-
+from pathlib import Path
 
 class GarminClient:
     """
