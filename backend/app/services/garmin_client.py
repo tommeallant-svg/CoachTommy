@@ -1,4 +1,5 @@
 import json
+import os
 from garminconnect import Garmin
 
 
