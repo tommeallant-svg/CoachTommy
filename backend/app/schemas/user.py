@@ -20,11 +20,6 @@ class UserResponse(UserBase):
     class Config:
         from_attributes = True
 
-class UserUpdateMenstrualCycle(BaseModel):
-    last_period_date: date
-    cycle_length: int = 28
-    period_length: int = 5
-
 class UserUpdateStats(BaseModel):
     vma: Optional[float] = None
     ftp: Optional[int] = None
