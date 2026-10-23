@@ -112,6 +112,16 @@ async def garmin_status(
     Check if user is connected to Garmin Connect.
     """
     
+    tokenstore = os.getenv("GARMINTOKENS", "~/.garminconnect")
+    tokenstore_path = str(Path(tokenstore).expanduser())
+    is_connected = false
+    try:
+        garmin = Garmin()
+        garmin.login(tokenstore_path)
+        is_connected = true
+    except (GarminConnectAuthenticationError, GarminConnectConnectionError):
+        print("No valid tokens found — please log in.")
     return GarminStatusResponse(
+        is_connected = is_connected,
         garmin_email=current_user.garmin_email
     )
