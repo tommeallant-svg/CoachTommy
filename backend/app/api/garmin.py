@@ -114,11 +114,11 @@ async def garmin_status(
     
     tokenstore = os.getenv("GARMINTOKENS", "~/.garminconnect")
     tokenstore_path = str(Path(tokenstore).expanduser())
-    is_connected = false
+    is_connected = False
     try:
         garmin = Garmin()
         garmin.login(tokenstore_path)
-        is_connected = true
+        is_connected = True
     except (GarminConnectAuthenticationError, GarminConnectConnectionError):
         print("No valid tokens found — please log in.")
     return GarminStatusResponse(
