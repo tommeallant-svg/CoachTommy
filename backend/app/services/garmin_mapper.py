@@ -113,7 +113,7 @@ class GarminMapper:
 
         if "distance" in interval:
             duration_type = "DISTANCE"
-            duration_value = float(interval["distance"]) * 1000.0  # km -> m
+            duration_value = float(interval["distance"])  # km -> m
         elif "duration" in interval:
             duration_type = "TIME"
             duration_value = float(interval["duration"]) * 60.0  # min -> sec
