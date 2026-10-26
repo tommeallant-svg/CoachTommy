@@ -235,7 +235,7 @@ async def push_workout_to_garmin(workout_id: int, db: Session = Depends(get_db),
     
     if db_workout is None:
         raise HTTPException(status_code=404, detail="Workout not found")
-    payload = GarminMapper.workout_to_garmin(workout)
+    payload = GarminMapper.workout_to_garmin(db_workout)
 
     # Check if user has Garmin tokens
     tokenstore = os.getenv("GARMINTOKENS", "~/.garminconnect")
