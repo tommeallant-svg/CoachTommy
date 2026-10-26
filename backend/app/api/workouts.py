@@ -11,12 +11,18 @@ from typing import List, Optional
 from ..database import get_db
 from ..models.workout import Workout
 from ..models.user import User
+from garminconnect import Garmin
 import os
 from pathlib import Path
 from ..schemas.workout import WorkoutCreate, WorkoutResponse, WorkoutUpdate, WorkoutValidation, WorkoutManualCreate
 from ..auth import get_current_user
 from ..services.garmin_export import generate_workout_fit
 from ..services.garmin_mapper import GarminMapper
+from garminconnect import (
+    GarminConnectAuthenticationError,
+    GarminConnectTooManyRequestsError,
+    GarminConnectConnectionError
+)
 
 router = APIRouter(prefix="/workouts", tags=["workouts"])
 
