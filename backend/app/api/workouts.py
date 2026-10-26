@@ -11,9 +11,12 @@ from typing import List, Optional
 from ..database import get_db
 from ..models.workout import Workout
 from ..models.user import User
+import os
+from pathlib import Path
 from ..schemas.workout import WorkoutCreate, WorkoutResponse, WorkoutUpdate, WorkoutValidation, WorkoutManualCreate
 from ..auth import get_current_user
 from ..services.garmin_export import generate_workout_fit
+from ..services.garmin_mapper import GarminMapper
 
 router = APIRouter(prefix="/workouts", tags=["workouts"])
 
@@ -232,46 +235,24 @@ async def push_workout_to_garmin(workout_id: int, db: Session = Depends(get_db),
     
     if db_workout is None:
         raise HTTPException(status_code=404, detail="Workout not found")
-    
-    # Check if user has Garmin tokens
-    if not current_user.garmin_token or not current_user.garmin_email:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User is not connected to Garmin Connect. Please connect via /auth/garmin/login first."
-        )
-    
-    try:
-        # Initialize Garmin client with stored tokens
-        import json
-        try:
-            # Essayer de désérialiser si c'est du JSON (nouveau format)
-            token_dict = json.loads(current_user.garmin_token)
-        except (json.JSONDecodeError, TypeError):
-            # Fallback vers l'ancien format (token simple)
-            token_dict = {
-                "access_token": current_user.garmin_token,
-                "refresh_token": current_user.garmin_refresh_token,
-                "token_type": "Bearer"
-            }
-            
-        garmin_client = GarminClient(token_dict=token_dict)
-        
-        # Vérifier si on est bien authentifié après initialisation
-        if not garmin_client.is_authenticated:
-            raise Exception("Not authenticated. Please reconnect your Garmin account in settings.")
+    payload = GarminMapper.workout_to_garmin(workout)
 
-        # Push workout to Garmin
-        push_workout(db_workout, garmin_client)
-        
-        # Si le push a réussi, on vérifie si les tokens ont été rafraîchis
-        new_tokens = garmin_client.get_token_dict()
-        if new_tokens and json.dumps(new_tokens) != current_user.garmin_token:
-            current_user.garmin_token = json.dumps(new_tokens)
-            current_user.garmin_refresh_token = new_tokens.get("refresh_token")
-            db.commit()
-        
+    # Check if user has Garmin tokens
+    tokenstore = os.getenv("GARMINTOKENS", "~/.garminconnect")
+    tokenstore_path = str(Path(tokenstore).expanduser())
+    print("tokenstore_path")
+    is_connected = False
+    try:
+        garmin = Garmin()
+        garmin.login(tokenstore_path)
+        print(payload)
+        garmin.upload_workout(payload)
         return {"status": "ok", "message": "Workout pushed to Garmin Connect successfully"}
-        
+
+    except (GarminConnectAuthenticationError, GarminConnectConnectionError):
+        print("No valid tokens found — please log in.")
+        raise HTTPException(status_code=401, detail="Please log in")
+
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
