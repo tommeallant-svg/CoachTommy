@@ -45,18 +45,18 @@ export default function CoachPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
-      <div className="bg-white border-b border-gray-100 sticky top-0 z-30 px-6 py-6">
+    <div className="min-h-screen bg-brand-surface pb-20">
+      <div className="bg-brand-dark border-b border-brand-primary/20 sticky top-0 z-30 px-6 py-6 shadow-lg shadow-brand-dark/10">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 text-gray-400 hover:text-black transition-colors font-black uppercase text-xs tracking-widest">
+          <Link href="/" className="flex items-center gap-2 text-brand-secondary hover:text-white transition-colors font-black uppercase text-xs tracking-widest">
             <ChevronLeft className="w-5 h-5" />
             <span>Tableau de bord</span>
           </Link>
           <div className="flex items-center gap-4">
-            <h1 className="text-2xl font-black text-black uppercase tracking-tighter">Espace Entraîneur</h1>
+            <h1 className="text-2xl font-black text-white uppercase tracking-tighter">Espace Entraîneur</h1>
           </div>
           <div className="flex gap-4">
-            <Link href="/catalog" className="flex items-center gap-2 bg-gray-100 text-gray-600 px-6 py-3 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-gray-200 transition-all">
+            <Link href="/catalog" className="flex items-center gap-2 bg-brand-primary text-white px-6 py-3 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-brand-secondary transition-all shadow-md">
               <BookOpen className="w-4 h-4" />
               <span>Catalogue</span>
             </Link>
@@ -67,28 +67,30 @@ export default function CoachPage() {
       <div className="max-w-6xl mx-auto px-6 mt-12 space-y-8">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="bg-black p-3 rounded-2xl">
-              <Users className="w-6 h-6 text-white" />
+            <div className="bg-brand-accent p-3 rounded-2xl shadow-lg shadow-brand-accent/20 text-white">
+              <Users className="w-6 h-6" />
             </div>
-            <h2 className="text-2xl font-black text-black uppercase tracking-tight">Mes Athlètes</h2>
+            <h2 className="text-2xl font-black text-brand-dark uppercase tracking-tight">Mes Athlètes</h2>
           </div>
         </div>
 
         {loading ? (
-          <div className="text-center py-20 font-black uppercase text-gray-400 tracking-widest">Chargement...</div>
+          <div className="text-center py-20 font-black uppercase text-brand-secondary tracking-widest animate-pulse">Chargement...</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {athletes.map(athlete => (
-              <div key={athlete.id} className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100 space-y-6 hover:shadow-xl hover:shadow-gray-200 transition-all group">
-                <div className="flex items-start justify-between">
+              <div key={athlete.id} className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-brand-light space-y-6 hover:shadow-xl hover:shadow-brand-primary/10 transition-all group relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-brand-light/20 rounded-bl-[5rem] -mr-8 -mt-8 transition-transform group-hover:scale-110" />
+                
+                <div className="flex items-start justify-between relative z-10">
                   <div className="space-y-1">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-gray-400">Athlète</div>
-                    <div className="text-lg font-black text-black truncate w-48">{athlete.email}</div>
+                    <div className="text-[10px] font-black uppercase tracking-widest text-brand-primary">Athlète</div>
+                    <div className="text-lg font-black text-brand-dark truncate w-48">{athlete.email}</div>
                   </div>
-                  <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex gap-2">
                     <button 
                       onClick={() => router.push(`/?athleteId=${athlete.id}`)}
-                      className="p-3 bg-gray-50 text-gray-400 hover:text-black hover:bg-gray-100 rounded-xl transition-all"
+                      className="p-3 bg-brand-surface text-brand-primary hover:text-white hover:bg-brand-primary rounded-xl transition-all shadow-sm"
                       title="Voir le calendrier"
                     >
                       <ExternalLink className="w-4 h-4" />
@@ -96,35 +98,35 @@ export default function CoachPage() {
                   </div>
                 </div>
 
-                <div className="space-y-4 pt-4 border-t border-gray-50">
+                <div className="space-y-4 pt-4 border-t border-brand-surface relative z-10">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-400 font-bold uppercase text-[10px] tracking-widest">Objectif</span>
-                    <span className="font-black text-black">{athlete.race_name}</span>
+                    <span className="text-brand-secondary font-bold uppercase text-[10px] tracking-widest">Objectif</span>
+                    <span className="font-black text-brand-dark">{athlete.race_name}</span>
                   </div>
                   
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-gray-50 p-4 rounded-2xl space-y-1">
-                      <div className="text-[9px] font-black uppercase tracking-widest text-gray-400 flex items-center gap-1">
+                    <div className="bg-brand-surface p-4 rounded-2xl space-y-1 border border-brand-light/50">
+                      <div className="text-[9px] font-black uppercase tracking-widest text-brand-secondary flex items-center gap-1">
                         <Calendar className="w-3 h-3" /> Durée
                       </div>
-                      <div className="text-sm font-black text-black">{athlete.duration_weeks} sem.</div>
+                      <div className="text-sm font-black text-brand-dark">{athlete.duration_weeks} sem.</div>
                     </div>
-                    <div className="bg-gray-50 p-4 rounded-2xl space-y-1">
-                      <div className="text-[9px] font-black uppercase tracking-widest text-gray-400 flex items-center gap-1">
+                    <div className="bg-brand-surface p-4 rounded-2xl space-y-1 border border-brand-light/50">
+                      <div className="text-[9px] font-black uppercase tracking-widest text-brand-accent flex items-center gap-1">
                         <TrendingUp className="w-3 h-3" /> Avancement
                       </div>
-                      <div className="text-sm font-black text-black">{athlete.progress_weeks} sem.</div>
+                      <div className="text-sm font-black text-brand-dark">{athlete.progress_weeks} sem.</div>
                     </div>
                   </div>
 
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-gray-400 font-bold uppercase text-[10px] tracking-widest">Réalisation</span>
-                      <span className="text-sm font-black text-black">{athlete.completion_rate.toFixed(1)}%</span>
+                      <span className="text-brand-secondary font-bold uppercase text-[10px] tracking-widest">Réalisation</span>
+                      <span className="text-sm font-black text-brand-primary">{athlete.completion_rate.toFixed(1)}%</span>
                     </div>
-                    <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="w-full h-2 bg-brand-light rounded-full overflow-hidden">
                       <div 
-                        className="h-full bg-black transition-all" 
+                        className="h-full bg-brand-primary transition-all shadow-sm" 
                         style={{ width: `${athlete.completion_rate}%` }}
                       />
                     </div>

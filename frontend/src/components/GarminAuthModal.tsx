@@ -129,17 +129,17 @@ export default function GarminAuthModal({
       >
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <div className="bg-black p-2.5 rounded-xl">
+            <div className="bg-brand-dark p-2.5 rounded-xl shadow-lg shadow-brand-dark/10">
               <Watch className="w-5 h-5 text-white" />
             </div>
-            <h3 className="text-xl font-black uppercase tracking-tight">
+            <h3 className="text-xl font-black text-brand-dark uppercase tracking-tight">
               {status?.is_connected ? 'Gestion Garmin Connect' : 'Connexion à Garmin Connect'}
             </h3>
           </div>
           <button
             onClick={onClose}
             disabled={isLoading}
-            className="p-2 text-gray-400 hover:text-black hover:bg-gray-100 rounded-xl transition-all disabled:opacity-50"
+            className="p-2 text-slate-400 hover:text-brand-dark hover:bg-brand-surface rounded-xl transition-all disabled:opacity-50"
           >
             <X className="w-5 h-5" />
           </button>
@@ -158,14 +158,14 @@ export default function GarminAuthModal({
               <CheckCircle2 className="w-8 h-8 text-green-500" />
             </div>
             <h4 className="text-lg font-black uppercase tracking-tight">Connecté à Garmin Connect</h4>
-            <p className="text-sm text-gray-500 font-medium">
-              Compte: <span className="font-black text-black">{status.garmin_email}</span>
+            <p className="text-sm text-slate-500 font-medium">
+              Compte: <span className="font-black text-brand-dark">{status.garmin_email}</span>
             </p>
             <div className="flex flex-col gap-3">
               <button
                 onClick={handleLogout}
                 disabled={isLoading}
-                className="w-full bg-black text-white font-black uppercase text-xs tracking-widest py-4 rounded-2xl hover:bg-gray-800 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                className="w-full bg-brand-dark text-white font-black uppercase text-xs tracking-widest py-4 rounded-2xl hover:bg-brand-primary transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-brand-dark/20"
               >
                 {isLoading ? (
                   <>
@@ -185,12 +185,12 @@ export default function GarminAuthModal({
             </p>
             
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 ml-1">
+              <label className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-secondary ml-1">
                 Adresse email Garmin
               </label>
               <input
                 type="email"
-                className="w-full px-6 py-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-black focus:bg-white outline-none transition-all font-bold"
+                className="w-full px-6 py-4 rounded-2xl bg-brand-surface border-2 border-transparent focus:border-brand-primary focus:bg-white outline-none transition-all font-bold text-brand-dark shadow-inner"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="votre@email.com"
@@ -200,12 +200,12 @@ export default function GarminAuthModal({
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 ml-1">
+              <label className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-secondary ml-1">
                 Mot de passe
               </label>
               <input
                 type="password"
-                className="w-full px-6 py-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-black focus:bg-white outline-none transition-all font-bold"
+                className="w-full px-6 py-4 rounded-2xl bg-brand-surface border-2 border-transparent focus:border-brand-primary focus:bg-white outline-none transition-all font-bold text-brand-dark shadow-inner"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Votre mot de passe Garmin"
@@ -217,7 +217,7 @@ export default function GarminAuthModal({
             <button
               type="submit"
               disabled={isLoading || !email || !password}
-              className="w-full bg-black text-white font-black uppercase text-xs tracking-widest py-4 rounded-2xl hover:bg-gray-800 transition-all disabled:opacity-50 flex items-center justify-center gap-2 mt-6"
+              className="w-full bg-brand-primary text-white font-black uppercase text-xs tracking-widest py-4 rounded-2xl hover:bg-brand-dark transition-all disabled:opacity-50 flex items-center justify-center gap-2 mt-6 shadow-lg shadow-brand-primary/20"
             >
               {isLoading ? (
                 <>

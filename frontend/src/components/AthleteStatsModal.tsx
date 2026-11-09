@@ -70,7 +70,7 @@ const AthleteStatsModal: React.FC<AthleteStatsModalProps> = ({
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
       <div className="bg-white rounded-[2.5rem] w-full max-w-md overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-300">
         {/* Header */}
-        <div className="bg-blue-600 p-8 text-white relative">
+        <div className="bg-brand-primary p-8 text-white relative shadow-lg shadow-brand-primary/20">
           <button 
             onClick={onClose}
             className="absolute top-6 right-6 p-2 hover:bg-white/20 rounded-full transition-colors"
@@ -84,7 +84,7 @@ const AthleteStatsModal: React.FC<AthleteStatsModalProps> = ({
             </div>
             <div>
               <h2 className="text-2xl font-black uppercase tracking-tighter">Profil Athlète</h2>
-              <p className="text-blue-100 text-sm font-medium">Vos capacités physiologiques</p>
+              <p className="text-brand-light text-sm font-medium">Vos capacités physiologiques</p>
             </div>
           </div>
         </div>
@@ -92,11 +92,11 @@ const AthleteStatsModal: React.FC<AthleteStatsModalProps> = ({
         <div className="p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-2 ml-1">
+              <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-brand-secondary mb-2 ml-1">
                 VMA (km/h)
               </label>
               <div className="relative">
-                <Activity className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Activity className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-brand-secondary" />
                 <input
                   type="number"
                   step="0.1"
@@ -105,17 +105,17 @@ const AthleteStatsModal: React.FC<AthleteStatsModalProps> = ({
                   placeholder="Ex: 16.5"
                   value={vma}
                   onChange={(e) => setVma(e.target.value)}
-                  className="w-full bg-gray-50 border-2 border-gray-50 px-12 py-4 rounded-2xl font-bold focus:bg-white focus:border-blue-600 transition-all outline-none"
+                  className="w-full bg-brand-surface border-2 border-transparent px-12 py-4 rounded-2xl font-bold focus:bg-white focus:border-brand-primary transition-all outline-none text-brand-dark shadow-inner"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-2 ml-1">
+              <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-brand-secondary mb-2 ml-1">
                 FTP (Watts)
               </label>
               <div className="relative">
-                <Zap className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Zap className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-brand-secondary" />
                 <input
                   type="number"
                   min="50"
@@ -123,13 +123,13 @@ const AthleteStatsModal: React.FC<AthleteStatsModalProps> = ({
                   placeholder="Ex: 250"
                   value={ftp}
                   onChange={(e) => setFtp(e.target.value)}
-                  className="w-full bg-gray-50 border-2 border-gray-50 px-12 py-4 rounded-2xl font-bold focus:bg-white focus:border-blue-600 transition-all outline-none"
+                  className="w-full bg-brand-surface border-2 border-transparent px-12 py-4 rounded-2xl font-bold focus:bg-white focus:border-brand-primary transition-all outline-none text-brand-dark shadow-inner"
                 />
               </div>
             </div>
 
             {error && (
-              <div className="p-4 bg-red-50 border border-red-100 rounded-2xl text-red-600 text-sm font-bold flex items-center gap-3">
+              <div className="p-4 bg-rose-50 border border-rose-100 rounded-2xl text-rose-600 text-sm font-bold flex items-center gap-3">
                 <Info className="w-5 h-5 shrink-0" />
                 {error}
               </div>
@@ -138,7 +138,7 @@ const AthleteStatsModal: React.FC<AthleteStatsModalProps> = ({
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-black text-white font-black uppercase text-xs tracking-widest py-5 rounded-2xl hover:bg-gray-800 transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-xl shadow-black/10"
+              className="w-full bg-brand-dark text-white font-black uppercase text-xs tracking-widest py-5 rounded-2xl hover:bg-brand-primary transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-xl shadow-brand-dark/20"
             >
               {isLoading ? (
                 <>
