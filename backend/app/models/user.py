@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, String, Date, Float
+from sqlalchemy import Column, Integer, String, Date, Float, ForeignKey
+from sqlalchemy.orm import relationship
 from ..database import Base
 
 class User(Base):
@@ -11,6 +12,15 @@ class User(Base):
     garmin_email = Column(String, nullable=True)
     garmin_token = Column(String, nullable=True)
     garmin_refresh_token = Column(String, nullable=True)
+
+    # Relationship for coach/athletes
+    coach_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    coach = relationship("User", remote_side=[id], backref="athletes")
+
+    # Menstrual cycle tracking
+    last_period_date = Column(Date, nullable=True)
+    cycle_length = Column(Integer, default=28)
+    period_length = Column(Integer, default=5)
 
     # Athlete stats
     vma = Column(Float, nullable=True)

@@ -30,16 +30,43 @@ def seed():
         hashed_password=get_password_hash("ToML2Bégé"),
         role="coach"
     )
+    db.add(coach)
+    db.commit()
+    db.refresh(coach)
+
     athlete = User(
         email="paloma.mouyade@gmail.com",
         hashed_password=get_password_hash("Pal0LaPl0uBéL"),
-        role="athlete"
+        role="athlete",
+        coach_id=coach.id,
+        vma=15.0,
+        ftp=150
     )
-    db.add(coach)
     db.add(athlete)
     db.commit()
-    db.refresh(coach)
     db.refresh(athlete)
+    
+    # Nouveaux utilisateurs demandés
+    coach_michel = User(
+        email="coachmichel@gmail.com",
+        hashed_password=get_password_hash("MichelCoach2024!"),
+        role="coach"
+    )
+    db.add(coach_michel)
+    db.commit()
+    db.refresh(coach_michel)
+
+    athlete_gillou = User(
+        email="gillouathlete@gmail.com",
+        hashed_password=get_password_hash("GillouAthlete2024!"),
+        role="athlete",
+        coach_id=coach_michel.id,
+        vma=15.0,
+        ftp=150
+    )
+    db.add(athlete_gillou)
+    db.commit()
+    db.refresh(athlete_gillou)
     
     # Create default catalog workouts
     catalog_workouts = [

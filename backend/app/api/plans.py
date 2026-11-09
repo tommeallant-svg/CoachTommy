@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from ..database import get_db
-from ..auth import get_current_user
+from ..auth import get_current_user, check_athlete_access
 from ..models.user import User
 from ..models.plan import Plan
 from ..schemas.plan import PlanCreate, PlanResponse, PlanArchive
@@ -15,33 +15,25 @@ router = APIRouter(prefix="/plans", tags=["plans"])
 
 @router.get("/current", response_model=Optional[PlanResponse])
 def get_current_plan(athlete_id: Optional[int] = None, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    target_athlete_id = current_user.id
-    if athlete_id and athlete_id != current_user.id:
-        if current_user.role != "coach":
-            raise HTTPException(status_code=403, detail="Seuls les coachs peuvent voir les plans d'autres athlètes")
-        target_athlete_id = athlete_id
+    target_athlete_id = athlete_id or current_user.id
+    check_athlete_access(current_user, target_athlete_id, db)
     
     return db.query(Plan).filter(Plan.athlete_id == target_athlete_id, Plan.is_archived == False).first()
 
 @router.get("/{plan_id}", response_model=PlanResponse)
 def get_plan(plan_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    query = db.query(Plan).filter(Plan.id == plan_id)
-    if current_user.role != "coach":
-        query = query.filter(Plan.athlete_id == current_user.id)
-    
-    db_plan = query.first()
+    db_plan = db.query(Plan).filter(Plan.id == plan_id).first()
     if not db_plan:
         raise HTTPException(status_code=404, detail="Plan non trouvé")
+    
+    check_athlete_access(current_user, db_plan.athlete_id, db)
     return db_plan
 
 
 @router.post("", response_model=PlanResponse)
 def create_plan(plan_in: PlanCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    target_athlete_id = current_user.id
-    if plan_in.athlete_id and plan_in.athlete_id != current_user.id:
-        if current_user.role != "coach":
-            raise HTTPException(status_code=403, detail="Seuls les coachs peuvent créer des plans pour d'autres athlètes")
-        target_athlete_id = plan_in.athlete_id
+    target_athlete_id = plan_in.athlete_id or current_user.id
+    check_athlete_access(current_user, target_athlete_id, db)
     
     # Vérifier s'il y a déjà un plan actif pour cet athlète
     active_plan = db.query(Plan).filter(Plan.athlete_id == target_athlete_id, Plan.is_archived == False).first()
@@ -79,13 +71,11 @@ def create_plan(plan_in: PlanCreate, db: Session = Depends(get_db), current_user
 
 @router.post("/{plan_id}/archive", response_model=PlanResponse)
 def archive_plan(plan_id: int, archive_data: PlanArchive, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    query = db.query(Plan).filter(Plan.id == plan_id)
-    if current_user.role != "coach":
-        query = query.filter(Plan.athlete_id == current_user.id)
-        
-    db_plan = query.first()
+    db_plan = db.query(Plan).filter(Plan.id == plan_id).first()
     if not db_plan:
         raise HTTPException(status_code=404, detail="Plan non trouvé")
+    
+    check_athlete_access(current_user, db_plan.athlete_id, db)
     
     db_plan.is_archived = True
     db_plan.cancellation_comment = archive_data.cancellation_comment
@@ -100,13 +90,11 @@ def archive_plan(plan_id: int, archive_data: PlanArchive, db: Session = Depends(
 
 @router.delete("/{plan_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_plan(plan_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    query = db.query(Plan).filter(Plan.id == plan_id)
-    if current_user.role != "coach":
-        query = query.filter(Plan.athlete_id == current_user.id)
-    
-    db_plan = query.first()
+    db_plan = db.query(Plan).filter(Plan.id == plan_id).first()
     if not db_plan:
         raise HTTPException(status_code=404, detail="Plan non trouvé")
+    
+    check_athlete_access(current_user, db_plan.athlete_id, db)
     
     db.delete(db_plan)
     db.commit()
