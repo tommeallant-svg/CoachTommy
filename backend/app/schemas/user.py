@@ -11,6 +11,7 @@ class UserCreate(UserBase):
 
 class UserResponse(UserBase):
     id: int
+    coach_id: Optional[int] = None
     last_period_date: Optional[date] = None
     cycle_length: Optional[int] = 28
     period_length: Optional[int] = 5

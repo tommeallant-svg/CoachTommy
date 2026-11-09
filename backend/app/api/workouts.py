@@ -117,6 +117,11 @@ def read_workouts(skip: int = 0, limit: int = 100, athlete_id: Optional[int] = N
     if athlete_id and athlete_id != current_user.id:
         if current_user.role != "coach":
             raise HTTPException(status_code=403, detail="Seuls les coachs peuvent voir les séances d'autres athlètes")
+        # Vérifier que l'athlète est bien attribué à ce coach
+        athlete = db.query(User).filter(User.id == athlete_id).first()
+        if not athlete or athlete.coach_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Cet athlète ne vous est pas attribué")
+
         target_athlete_id = athlete_id
         
     return db.query(Workout).join(Plan, Workout.plan_id == Plan.id, isouter=True).filter(

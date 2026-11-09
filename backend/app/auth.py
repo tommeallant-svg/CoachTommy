@@ -58,3 +58,15 @@ async def get_current_coach(current_user: User = Depends(get_current_user)):
             detail="The user does not have enough privileges"
         )
     return current_user
+
+def check_athlete_access(user: User, athlete_id: int, db: Session):
+    if user.id == athlete_id:
+        return True
+    if user.role == "coach":
+        athlete = db.query(User).filter(User.id == athlete_id).first()
+        if athlete and athlete.coach_id == user.id:
+            return True
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Vous n'avez pas accès aux données de cet athlète"
+    )
