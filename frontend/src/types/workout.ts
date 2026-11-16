@@ -33,6 +33,7 @@ export interface Workout {
   athlete_comment: string | null;
   plan_id: number | null;
   athlete_id: number | null;
+  garmin_workout_id?: string | null;
   created_at: string;
   updated_at: string;
 }

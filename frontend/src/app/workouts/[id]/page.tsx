@@ -172,7 +172,7 @@ export default function WorkoutDetailPage() {
     try {
       setIsCheckingGarmin(true);
       const response = await fetchWithAuth(
-        `/api/workouts/${id}/garmin/push`,
+        `/api/auth/garmin/sync-workout/${id}`,
         {
           method: "POST",
         }
