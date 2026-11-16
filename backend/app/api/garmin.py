@@ -13,6 +13,8 @@ from pathlib import Path
 from ..auth import get_current_user
 from garminconnect import Garmin
 from ..services.garmin_client import GarminClient
+from ..services.garmin_workout_service import GarminWorkoutService
+from ..models.workout import Workout
 from garminconnect import (
     GarminConnectAuthenticationError,
     GarminConnectTooManyRequestsError,
@@ -129,3 +131,51 @@ async def garmin_status(
         is_connected = is_connected,
         garmin_email=current_user.garmin_email
     )
+
+
+@router.post("/sync-workout/{workout_id}")
+async def sync_workout_to_garmin(
+    workout_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Synchronise un workout spécifique vers Garmin Connect.
+    """
+    # 1. Récupérer le workout
+    workout = db.query(Workout).filter(Workout.id == workout_id).first()
+    if not workout:
+        raise HTTPException(status_code=404, detail="Workout non trouvé")
+        
+    # 2. Vérifier la connexion Garmin
+    tokenstore = os.getenv("GARMINTOKENS", "~/.garminconnect")
+    tokenstore_path = str(Path(tokenstore).expanduser())
+    
+    try:
+        garmin = Garmin()
+        garmin.login(tokenstore_path)
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Non connecté à Garmin Connect. Veuillez vous reconnecter."
+        )
+
+    # 3. Transformer le workout
+    try:
+        garmin_workout = GarminWorkoutService.transform_to_garmin(workout, current_user)
+        workout_dict = garmin_workout.get_workout()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Erreur lors de la transformation du workout : {str(e)}")
+
+    # 4. Uploader sur Garmin
+    try:
+        result = garmin.upload_workout(workout_dict)
+        # Le résultat contient souvent le workoutId créé
+        garmin_workout_id = result.get("workoutId")
+        if garmin_workout_id:
+            workout.garmin_workout_id = str(garmin_workout_id)
+            db.commit()
+            
+        return {"status": "success", "garmin_workout_id": garmin_workout_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erreur lors de l'upload vers Garmin : {str(e)}")

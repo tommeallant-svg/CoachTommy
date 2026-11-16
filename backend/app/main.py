@@ -1,6 +1,7 @@
 import time
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 from .database import engine, Base
 from .api import workouts, auth, plans, catalog, coach, garmin
 from .models import user, workout, plan, catalog as catalog_model
@@ -9,6 +10,14 @@ from .models import user, workout, plan, catalog as catalog_model
 for i in range(5):
     try:
         Base.metadata.create_all(bind=engine)
+        # Migration: Add garmin_workout_id to workouts table if it doesn't exist
+        with engine.connect() as conn:
+            try:
+                conn.execute(text("ALTER TABLE workouts ADD COLUMN garmin_workout_id VARCHAR"))
+                conn.commit()
+            except Exception:
+                # The column probably already exists
+                pass
         break
     except Exception as e:
         print(f"Waiting for database... ({i+1}/5) - Error: {e}")

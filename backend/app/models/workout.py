@@ -33,5 +33,7 @@ class Workout(Base):
     athlete_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     athlete = relationship("User")
 
+    garmin_workout_id = Column(String, nullable=True)
+
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
