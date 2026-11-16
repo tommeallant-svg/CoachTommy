@@ -48,22 +48,31 @@ class GarminClient:
         """
         Synchronise les tokens JSON vers le fichier spécifié par GARMINTOKENS.
         """
-        tokenstore = os.getenv("GARMINTOKENS", "~/.garminconnect")
-        tokenstore_path = str(Path(tokenstore).expanduser())
+        tokenstore = os.getenv("GARMINTOKENS", "~/.garminconnect_session.json")
+        tokenstore_path = Path(tokenstore).expanduser()
+        
+        # Si le chemin pointé est un dossier, on utilise un fichier à l'intérieur
+        if tokenstore_path.is_dir():
+            tokenstore_path = tokenstore_path / "session.json"
+            
+        tokenstore_path_str = str(tokenstore_path)
         
         if garmin_token_json:
-            # Créer le répertoire si nécessaire
-            os.makedirs(os.path.dirname(tokenstore_path), exist_ok=True)
-            with open(tokenstore_path, "w") as f:
-                f.write(garmin_token_json)
+            # Créer le répertoire parent si nécessaire
+            os.makedirs(os.path.dirname(tokenstore_path_str), exist_ok=True)
+            try:
+                with open(tokenstore_path_str, "w") as f:
+                    f.write(garmin_token_json)
+            except Exception as e:
+                print(f"Error writing tokens to {tokenstore_path_str}: {e}")
         else:
             # Si pas de tokens, on supprime le fichier pour éviter les conflits de session
-            if os.path.exists(tokenstore_path):
+            if tokenstore_path.exists() and tokenstore_path.is_file():
                 try:
-                    os.remove(tokenstore_path)
+                    os.remove(tokenstore_path_str)
                 except Exception:
                     pass
-        return tokenstore_path
+        return tokenstore_path_str
 
     def login(self):
         """
@@ -77,11 +86,15 @@ class GarminClient:
                 return tokens
             
         try:
-            tokenstore = os.getenv("GARMINTOKENS", "~/.garminconnect")
-            print(tokenstore)
-            tokenstore_path = str(Path(tokenstore).expanduser())
-            print(tokenstore_path)
-            self.client.login(tokenstore_path)
+            tokenstore = os.getenv("GARMINTOKENS", "~/.garminconnect_session.json")
+            tokenstore_path = Path(tokenstore).expanduser()
+            
+            if tokenstore_path.is_dir():
+                tokenstore_path = tokenstore_path / "session.json"
+                
+            tokenstore_path_str = str(tokenstore_path)
+            
+            self.client.login(tokenstore_path_str)
             self.is_authenticated = True
             print("success login")
             print(self.client.username)
