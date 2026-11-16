@@ -176,7 +176,7 @@ async def sync_workout_to_garmin(
     # 3. Transformer le workout
     try:
         garmin_workout = GarminWorkoutService.transform_to_garmin(workout, current_user)
-        workout_dict = garmin_workout.get_workout()
+        workout_dict = garmin_workout.to_dict()
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Erreur lors de la transformation du workout : {str(e)}")
 
