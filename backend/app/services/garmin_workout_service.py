@@ -1,4 +1,4 @@
-from garminconnect import RunningWorkout, CyclingWorkout
+from garminconnect.workout import RunningWorkout, CyclingWorkout
 from ..models.workout import Workout
 from ..models.user import User
 import math
