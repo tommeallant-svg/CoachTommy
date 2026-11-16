@@ -6,7 +6,7 @@
 import re
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
-from sqlalchemy import or_
+from sqlalchemy import or_, func
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from ..database import get_db
@@ -130,7 +130,8 @@ def read_workouts(skip: int = 0, limit: int = 100, athlete_id: Optional[int] = N
         or_(
             Plan.id == None,
             Plan.is_archived == False,
-            Workout.is_validated == True
+            Workout.is_validated == True,
+            (Plan.is_archived == True) & (Workout.date < func.now())
         )
     ).order_by(Workout.date.asc()).offset(skip).limit(limit).all()
 
