@@ -249,10 +249,11 @@ async def push_workout_to_garmin(workout_id: int, db: Session = Depends(get_db),
     payload = GarminMapper.workout_to_garmin(db_workout)
 
     # Check if user has Garmin tokens
-    tokenstore = os.getenv("GARMINTOKENS", "~/.garminconnect")
-    tokenstore_path = str(Path(tokenstore).expanduser())
-    print("tokenstore_path")
-    is_connected = False
+    tokenstore_path = GarminClient.sync_tokens_to_file(current_user.garmin_token)
+    
+    if not current_user.garmin_token:
+        raise HTTPException(status_code=401, detail="Please log in to Garmin Connect first")
+
     try:
         garmin = Garmin()
         garmin.login(tokenstore_path)

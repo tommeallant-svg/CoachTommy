@@ -22,7 +22,6 @@ class GarminClient:
         """
         self.email = email
         self._token_dict = token_dict
-        print(self)
         
         if token_dict:
             # Si on a des tokens, initialiser avec eux via la méthode native
@@ -39,11 +38,32 @@ class GarminClient:
                 self.is_authenticated = False
         elif email and password:
             # Sinon, créer un nouveau client avec email/password
-            print("try garmin email password")
             self.client = Garmin(email, password)
             self.is_authenticated = False
         else:
             raise ValueError("Either email/password or token_dict must be provided")
+
+    @staticmethod
+    def sync_tokens_to_file(garmin_token_json: str):
+        """
+        Synchronise les tokens JSON vers le fichier spécifié par GARMINTOKENS.
+        """
+        tokenstore = os.getenv("GARMINTOKENS", "~/.garminconnect")
+        tokenstore_path = str(Path(tokenstore).expanduser())
+        
+        if garmin_token_json:
+            # Créer le répertoire si nécessaire
+            os.makedirs(os.path.dirname(tokenstore_path), exist_ok=True)
+            with open(tokenstore_path, "w") as f:
+                f.write(garmin_token_json)
+        else:
+            # Si pas de tokens, on supprime le fichier pour éviter les conflits de session
+            if os.path.exists(tokenstore_path):
+                try:
+                    os.remove(tokenstore_path)
+                except Exception:
+                    pass
+        return tokenstore_path
 
     def login(self):
         """

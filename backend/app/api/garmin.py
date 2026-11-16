@@ -61,6 +61,10 @@ async def garmin_login(
         import json
         current_user.garmin_email = request.email
         # On stocke le dictionnaire complet en JSON dans garmin_token pour plus de robustesse
+        tokens_dict = garmin_client.get_token_dict()
+        if tokens_dict:
+            current_user.garmin_token = json.dumps(tokens_dict)
+            
         db.commit()
         db.refresh(current_user)
         
@@ -116,17 +120,21 @@ async def garmin_status(
     """
     Check if user is connected to Garmin Connect.
     """
-    
-    tokenstore = os.getenv("GARMINTOKENS", "~/.garminconnect")
-    tokenstore_path = str(Path(tokenstore).expanduser())
-    print("tokenstore_path")
+    tokenstore_path = GarminClient.sync_tokens_to_file(current_user.garmin_token)
     is_connected = False
+    
+    if not current_user.garmin_token:
+        return GarminStatusResponse(is_connected=False, garmin_email=current_user.garmin_email)
+
     try:
         garmin = Garmin()
         garmin.login(tokenstore_path)
         is_connected = True
     except (GarminConnectAuthenticationError, GarminConnectConnectionError):
         print("No valid tokens found — please log in.")
+    except Exception as e:
+        print(f"Error checking Garmin status: {e}")
+        
     return GarminStatusResponse(
         is_connected = is_connected,
         garmin_email=current_user.garmin_email
@@ -148,9 +156,14 @@ async def sync_workout_to_garmin(
         raise HTTPException(status_code=404, detail="Workout non trouvé")
         
     # 2. Vérifier la connexion Garmin
-    tokenstore = os.getenv("GARMINTOKENS", "~/.garminconnect")
-    tokenstore_path = str(Path(tokenstore).expanduser())
+    tokenstore_path = GarminClient.sync_tokens_to_file(current_user.garmin_token)
     
+    if not current_user.garmin_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Non connecté à Garmin Connect. Veuillez vous reconnecter."
+        )
+
     try:
         garmin = Garmin()
         garmin.login(tokenstore_path)
