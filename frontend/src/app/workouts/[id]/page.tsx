@@ -398,12 +398,12 @@ export default function WorkoutDetailPage() {
   if (!workout) return <div className="min-h-screen flex items-center justify-center">Séance non trouvée</div>;
 
   return (
-    <main className="min-h-screen bg-[#F8F9FA] pb-20 font-sans">
+    <main className="min-h-screen bg-brand-surface pb-20 font-sans">
       {/* Header compact sur mobile */}
-      <div className="bg-white/80 backdrop-blur-md border-b border-gray-100 sticky top-0 z-50">
+      <div className="bg-brand-dark border-b border-brand-primary/20 sticky top-0 z-50 shadow-lg shadow-brand-dark/10">
         <div className="max-w-5xl mx-auto px-4 md:px-6 h-16 md:h-20 flex items-center justify-between gap-2">
-          <Link href="/" className="flex items-center gap-2 text-black hover:opacity-70 transition-all group">
-            <div className="p-2 bg-gray-100 rounded-xl group-hover:bg-black group-hover:text-white transition-all">
+          <Link href="/" className="flex items-center gap-2 text-brand-secondary hover:text-white transition-all group">
+            <div className="p-2 bg-brand-primary/20 rounded-xl group-hover:bg-brand-primary group-hover:text-white transition-all">
               <ChevronLeft className="w-5 h-5" />
             </div>
             <span className="hidden md:inline font-black uppercase text-[10px] tracking-[0.2em]">Retour au calendrier</span>
@@ -413,7 +413,7 @@ export default function WorkoutDetailPage() {
               <div className="flex gap-2">
                 <button 
                   onClick={() => setIsEditing(true)}
-                  className="flex items-center gap-2 bg-black text-white px-3 md:px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-800 transition-all shadow-lg"
+                  className="flex items-center gap-2 bg-brand-primary text-white px-3 md:px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-brand-secondary transition-all shadow-lg"
                 >
                   <Edit2 className="w-4 h-4" /> <span className="hidden sm:inline">Modifier</span>
                 </button>
@@ -430,26 +430,26 @@ export default function WorkoutDetailPage() {
                 <CheckCircle2 className="w-3.5 h-3.5 md:w-4 md:h-4" /> Validée
               </span>
             )}
-            <span className="hidden sm:inline text-gray-400 font-bold uppercase text-[10px] tracking-widest">{format(parseISO(workout.date), 'd MMMM yyyy', { locale: fr })}</span>
+            <span className="hidden sm:inline text-brand-secondary font-bold uppercase text-[10px] tracking-widest">{format(parseISO(workout.date), 'd MMMM yyyy', { locale: fr })}</span>
           </div>
         </div>
       </div>
 
       <div className="max-w-5xl mx-auto px-4 md:px-6 mt-6 md:mt-12 space-y-6 md:space-y-12">
         {isEditing ? (
-          <section className="bg-white rounded-[2rem] md:rounded-[3rem] p-6 md:p-16 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.06)] border border-gray-50">
-            <h2 className="text-2xl md:text-4xl font-black text-black uppercase tracking-tighter mb-6 md:mb-12">Modifier la séance</h2>
+          <section className="bg-white rounded-[2rem] md:rounded-[3rem] p-6 md:p-16 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.06)] border border-brand-light/50">
+            <h2 className="text-2xl md:text-4xl font-black text-brand-dark uppercase tracking-tighter mb-6 md:mb-12">Modifier la séance</h2>
             <form onSubmit={handleUpdate} className="space-y-6 md:space-y-8">
               
               {/* Coach-only athlete selector */}
               {isCoach && (
-                <div className="space-y-2 pb-6 border-b border-gray-50">
-                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 ml-1 flex items-center gap-2">
+                <div className="space-y-2 pb-6 border-b border-brand-surface">
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-secondary ml-1 flex items-center gap-2">
                     <Users className="w-3 h-3" />
                     Attribuer à l'athlète
                   </label>
                   <select
-                    className="w-full px-6 py-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-black focus:bg-white outline-none transition-all font-bold appearance-none cursor-pointer"
+                    className="w-full px-6 py-4 rounded-2xl bg-brand-surface border-2 border-transparent focus:border-brand-primary focus:bg-white outline-none transition-all font-bold appearance-none cursor-pointer text-brand-dark"
                     value={editFormData.athlete_id || ''}
                     onChange={e => setEditFormData({...editFormData, athlete_id: e.target.value ? parseInt(e.target.value) : null})}
                     required
@@ -471,7 +471,7 @@ export default function WorkoutDetailPage() {
                   onClick={handleOpenCatalog}
                   disabled={!athleteVma && !athleteFtp}
                   title={(!athleteVma && !athleteFtp) ? "Les statistiques de l'athlète (VMA/FTP) ne sont pas disponibles." : undefined}
-                  className="flex items-center gap-2 bg-white text-black border border-gray-200 px-4 py-2 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-black hover:text-white transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 bg-white text-brand-dark border border-brand-light px-4 py-2 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-brand-primary hover:text-white transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <BookOpen className="w-4 h-4" />
                   Choisir du catalogue
@@ -479,9 +479,9 @@ export default function WorkoutDetailPage() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 ml-1">Discipline</label>
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-secondary ml-1">Discipline</label>
                   <select
-                    className="w-full px-6 py-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-black focus:bg-white outline-none transition-all font-bold appearance-none cursor-pointer"
+                    className="w-full px-6 py-4 rounded-2xl bg-brand-surface border-2 border-transparent focus:border-brand-primary focus:bg-white outline-none transition-all font-bold appearance-none cursor-pointer text-brand-dark"
                     value={editFormData.sport}
                     onChange={e => setEditFormData({...editFormData, sport: e.target.value as 'running' | 'cycling'})}
                   >
@@ -490,18 +490,18 @@ export default function WorkoutDetailPage() {
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 ml-1">Nom de la séance</label>
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-secondary ml-1">Nom de la séance</label>
                   <input
                     type="text"
-                    className="w-full px-6 py-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-black focus:bg-white outline-none transition-all font-bold"
+                    className="w-full px-6 py-4 rounded-2xl bg-brand-surface border-2 border-transparent focus:border-brand-primary focus:bg-white outline-none transition-all font-bold text-brand-dark"
                     value={editFormData.name}
                     onChange={e => setEditFormData({...editFormData, name: e.target.value})}
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 ml-1">Type de séance</label>
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-secondary ml-1">Type de séance</label>
                   <select
-                    className="w-full px-6 py-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-black focus:bg-white outline-none transition-all font-bold appearance-none cursor-pointer"
+                    className="w-full px-6 py-4 rounded-2xl bg-brand-surface border-2 border-transparent focus:border-brand-primary focus:bg-white outline-none transition-all font-bold appearance-none cursor-pointer text-brand-dark"
                     value={editFormData.workout_type}
                     onChange={e => setEditFormData({...editFormData, workout_type: e.target.value})}
                   >
@@ -509,31 +509,31 @@ export default function WorkoutDetailPage() {
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 ml-1">Date & Heure</label>
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-secondary ml-1">Date & Heure</label>
                   <input
                     type="datetime-local"
-                    className="w-full px-6 py-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-black focus:bg-white outline-none transition-all font-bold"
+                    className="w-full px-6 py-4 rounded-2xl bg-brand-surface border-2 border-transparent focus:border-brand-primary focus:bg-white outline-none transition-all font-bold text-brand-dark"
                     value={editFormData.date}
                     onChange={e => setEditFormData({...editFormData, date: e.target.value})}
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 ml-1">Durée (min)</label>
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-secondary ml-1">Durée (min)</label>
                     <input
                       type="number"
-                      className="w-full px-6 py-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-black focus:bg-white outline-none transition-all font-bold"
+                      className="w-full px-6 py-4 rounded-2xl bg-brand-surface border-2 border-transparent focus:border-brand-primary focus:bg-white outline-none transition-all font-bold text-brand-dark"
                       value={editFormData.duration_minutes}
                       onChange={e => setEditFormData({...editFormData, duration_minutes: parseInt(e.target.value)})}
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 ml-1">Difficulté (1-10)</label>
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-secondary ml-1">Difficulté (1-10)</label>
                     <input
                       type="number"
                       min="1"
                       max="10"
-                      className="w-full px-6 py-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-black focus:bg-white outline-none transition-all font-bold"
+                      className="w-full px-6 py-4 rounded-2xl bg-brand-surface border-2 border-transparent focus:border-brand-primary focus:bg-white outline-none transition-all font-bold text-brand-dark"
                       value={editFormData.difficulty_level}
                       onChange={e => setEditFormData({...editFormData, difficulty_level: parseInt(e.target.value)})}
                     />
@@ -541,18 +541,18 @@ export default function WorkoutDetailPage() {
                 </div>
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 ml-1">Description</label>
+                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-secondary ml-1">Description</label>
                 <textarea
-                  className="w-full px-6 py-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-black focus:bg-white outline-none font-bold text-sm min-h-[150px]"
+                  className="w-full px-6 py-4 rounded-2xl bg-brand-surface border-2 border-transparent focus:border-brand-primary focus:bg-white outline-none font-bold text-sm min-h-[150px] text-brand-dark"
                   value={editFormData.description}
                   onChange={e => setEditFormData({...editFormData, description: e.target.value})}
                 />
               </div>
 
               <div className="space-y-4">
-                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 ml-1">Structure (JSON)</label>
+                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-secondary ml-1">Structure (JSON)</label>
                 <textarea
-                  className="w-full px-6 py-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-black focus:bg-white outline-none font-mono text-xs min-h-[200px]"
+                  className="w-full px-6 py-4 rounded-2xl bg-brand-surface border-2 border-transparent focus:border-brand-primary focus:bg-white outline-none font-mono text-xs min-h-[200px] text-brand-dark"
                   value={JSON.stringify(editFormData.scheme, null, 2)}
                   onChange={e => {
                     try {
@@ -568,14 +568,14 @@ export default function WorkoutDetailPage() {
                 <button
                   type="submit"
                   disabled={isValidating}
-                  className="flex-1 py-4 md:py-6 rounded-2xl md:rounded-[2rem] bg-black text-white font-black uppercase text-xs md:text-sm tracking-[0.2em] md:tracking-[0.3em] hover:bg-gray-800 transition-all shadow-xl shadow-gray-200 disabled:opacity-50"
+                  className="flex-1 py-4 md:py-6 rounded-2xl md:rounded-[2rem] bg-brand-primary text-white font-black uppercase text-xs md:text-sm tracking-[0.2em] md:tracking-[0.3em] hover:bg-brand-secondary transition-all shadow-xl shadow-brand-primary/10 disabled:opacity-50"
                 >
                   {isValidating ? 'Enregistrement...' : 'Sauvegarder'}
                 </button>
                 <button
                   type="button"
                   onClick={() => setIsEditing(false)}
-                  className="px-6 md:px-10 py-4 md:py-6 rounded-2xl md:rounded-[2rem] bg-gray-100 text-black font-black uppercase text-xs md:text-sm tracking-[0.2em] md:tracking-[0.3em] hover:bg-gray-200 transition-all"
+                  className="px-6 md:px-10 py-4 md:py-6 rounded-2xl md:rounded-[2rem] bg-brand-surface text-brand-dark font-black uppercase text-xs md:text-sm tracking-[0.2em] md:tracking-[0.3em] hover:bg-brand-light transition-all border border-brand-light"
                 >
                   Annuler
                 </button>
@@ -585,19 +585,19 @@ export default function WorkoutDetailPage() {
         ) : (
           <>
             {/* Main Info */}
-            <section className="bg-white rounded-[2rem] md:rounded-[3rem] p-6 md:p-16 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.06)] border border-gray-50 relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-3 h-full bg-black" />
+            <section className="bg-white rounded-[2rem] md:rounded-[3rem] p-6 md:p-16 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.06)] border border-brand-light/50 relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-3 h-full bg-brand-primary" />
               
               <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 md:gap-10 mb-8 md:mb-16">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-4 md:mb-8">
-                    <span className="px-3 md:px-4 py-1.5 rounded-full text-[9px] md:text-[10px] font-black bg-yellow-400 text-black uppercase tracking-widest">
+                    <span className="px-3 md:px-4 py-1.5 rounded-full text-[9px] md:text-[10px] font-black bg-brand-accent text-white uppercase tracking-widest shadow-sm shadow-brand-accent/20">
                       {workout.workout_type}
                     </span>
-                    <span className="w-8 h-[2px] bg-gray-100" />
+                    <span className="w-8 h-[2px] bg-brand-surface" />
                   </div>
-                  <h1 className="text-3xl sm:text-5xl md:text-7xl lg:text-8xl font-black text-black leading-[1.05] md:leading-[0.9] uppercase tracking-tighter mb-2 md:mb-6">{workout.name}</h1>
-                  <div className="flex items-center gap-4 md:gap-6 text-gray-400 font-black uppercase text-[9px] md:text-[10px] tracking-[0.2em]">
+                  <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-black text-brand-dark leading-[1.05] md:leading-[0.9] uppercase tracking-tighter mb-2 md:mb-6">{workout.name}</h1>
+                  <div className="flex items-center gap-4 md:gap-6 text-brand-secondary font-black uppercase text-[9px] md:text-[10px] tracking-[0.2em]">
                     <div className="flex items-center gap-2">
                       <Calendar className="w-4 h-4" />
                       {format(parseISO(workout.date), 'EEEE d MMMM', { locale: fr })}
@@ -607,7 +607,7 @@ export default function WorkoutDetailPage() {
                     <button
                       onClick={handleGarminExport}
                       disabled={isCheckingGarmin}
-                      className="flex items-center gap-2 bg-black text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-800 transition-all shadow-lg active:scale-[0.98] disabled:opacity-50"
+                      className="flex items-center gap-2 bg-brand-primary text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-brand-secondary transition-all shadow-lg active:scale-[0.98] disabled:opacity-50"
                     >
                       <Watch className="w-4 h-4" />
                       Telecharger fichier FIT
@@ -615,7 +615,7 @@ export default function WorkoutDetailPage() {
                     <button
                       onClick={handlePushGarmin}
                       disabled={isCheckingGarmin}
-                      className="flex items-center gap-2 bg-black text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-800 transition-all shadow-lg active:scale-[0.98] disabled:opacity-50"
+                      className="flex items-center gap-2 bg-brand-dark text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-brand-primary transition-all shadow-lg active:scale-[0.98] disabled:opacity-50 border border-brand-primary/20"
                     >
                       {isCheckingGarmin ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -647,75 +647,75 @@ export default function WorkoutDetailPage() {
                     </div>
                   )}
                   {garminConnected && garminEmail && (
-                    <div className="mt-4 flex items-center gap-2 text-sm text-gray-500 font-medium">
+                    <div className="mt-4 flex items-center gap-2 text-sm text-brand-secondary font-medium">
                       <Link2 className="w-4 h-4 text-green-500" />
-                      Connecté à: <span className="font-black text-black">{garminEmail}</span>
+                      Connecté à: <span className="font-black text-brand-dark">{garminEmail}</span>
                     </div>
                   )}
                 </div>
                 
                 {/* Statistiques : bandeau compact sur mobile, cartes larges sur desktop */}
                 <div className="grid grid-cols-3 gap-2 md:gap-4 lg:flex lg:flex-wrap">
-                  <div className="bg-black text-white px-2 py-3 md:px-10 md:py-8 rounded-xl md:rounded-[2.5rem] flex flex-col items-center justify-center shadow-lg md:shadow-2xl md:shadow-black/20">
-                    <Clock className="w-4 h-4 md:w-8 md:h-8 mb-1 md:mb-4 text-yellow-400" />
+                  <div className="bg-brand-dark text-white px-2 py-3 md:px-10 md:py-8 rounded-xl md:rounded-[2.5rem] flex flex-col items-center justify-center shadow-lg md:shadow-2xl md:shadow-brand-dark/20 border border-brand-primary/20">
+                    <Clock className="w-4 h-4 md:w-8 md:h-8 mb-1 md:mb-4 text-brand-accent" />
                     <span className="text-lg md:text-4xl font-black leading-none">{workout.duration_minutes}</span>
                     <span className="text-[8px] md:text-[10px] uppercase font-black tracking-widest mt-1 md:mt-2 opacity-50">Minutes</span>
                   </div>
-                  <div className="bg-white text-black px-2 py-3 md:px-10 md:py-8 rounded-xl md:rounded-[2.5rem] flex flex-col items-center justify-center border border-gray-200">
-                    <Activity className="w-4 h-4 md:w-8 md:h-8 mb-1 md:mb-4 text-black" />
+                  <div className="bg-white text-brand-dark px-2 py-3 md:px-10 md:py-8 rounded-xl md:rounded-[2.5rem] flex flex-col items-center justify-center border border-brand-light shadow-sm">
+                    <Activity className="w-4 h-4 md:w-8 md:h-8 mb-1 md:mb-4 text-brand-primary" />
                     <span className="text-lg md:text-4xl font-black leading-none">{workout.difficulty_level}</span>
                     <span className="text-[8px] md:text-[10px] uppercase font-black tracking-widest mt-1 md:mt-2 opacity-50">Intensité</span>
                   </div>
-                  <div className="bg-gray-50 text-black px-2 py-3 md:px-10 md:py-8 rounded-xl md:rounded-[2.5rem] flex flex-col items-center justify-center border border-gray-200">
-                    <Dumbbell className="w-4 h-4 md:w-8 md:h-8 mb-1 md:mb-4 text-black" />
+                  <div className="bg-brand-surface text-brand-dark px-2 py-3 md:px-10 md:py-8 rounded-xl md:rounded-[2.5rem] flex flex-col items-center justify-center border border-brand-light">
+                    <Dumbbell className="w-4 h-4 md:w-8 md:h-8 mb-1 md:mb-4 text-brand-secondary" />
                     <span className="text-lg md:text-4xl font-black leading-none">{workout.estimated_load?.toFixed(0)}</span>
                     <span className="text-[8px] md:text-[10px] uppercase font-black tracking-widest mt-1 md:mt-2 opacity-50">Charge</span>
                   </div>
                 </div>
               </div>
 
-              <div className="space-y-6 md:space-y-10 border-t border-gray-100 pt-8 md:pt-16">
+              <div className="space-y-6 md:space-y-10 border-t border-brand-surface pt-8 md:pt-16">
                 <div className="max-w-3xl">
-                  <h4 className="font-black text-[9px] md:text-[10px] text-gray-400 uppercase tracking-[0.3em] mb-4 md:mb-8 flex items-center gap-3">
-                    <div className="w-2 h-2 bg-black rounded-full" />
+                  <h4 className="font-black text-[9px] md:text-[10px] text-brand-secondary uppercase tracking-[0.3em] mb-4 md:mb-8 flex items-center gap-3">
+                    <div className="w-2 h-2 bg-brand-primary rounded-full" />
                     Objectifs & Description
                   </h4>
-                  <p className="text-gray-800 text-base md:text-3xl leading-relaxed md:leading-snug font-medium italic tracking-tight">
+                  <p className="text-brand-dark text-base md:text-3xl leading-relaxed md:leading-snug font-medium italic tracking-tight">
                     "{workout.description}"
                   </p>
                 </div>
 
                 {workout.scheme && workout.scheme.length > 0 && (
                   <div className="pt-4 md:pt-8">
-                    <h4 className="font-black text-[9px] md:text-[10px] text-gray-400 uppercase tracking-[0.3em] mb-4 md:mb-8 flex items-center gap-3">
-                      <div className="w-2 h-2 bg-yellow-400 rounded-full" />
+                    <h4 className="font-black text-[9px] md:text-[10px] text-brand-secondary uppercase tracking-[0.3em] mb-4 md:mb-8 flex items-center gap-3">
+                      <div className="w-2 h-2 bg-brand-accent rounded-full" />
                       Structure de l'exercice
                     </h4>
                     <div className="space-y-3 md:space-y-6">
                       {workout.scheme.map((block: WorkoutBlock, bIdx: number) => (
-                        <div key={bIdx} className="bg-gray-50 p-3 md:p-8 rounded-2xl md:rounded-[2.5rem] border border-gray-100 relative group overflow-hidden">
-                          <div className="absolute top-0 left-0 w-2 h-full bg-yellow-400 opacity-20 group-hover:opacity-100 transition-all" />
+                        <div key={bIdx} className="bg-brand-surface p-3 md:p-8 rounded-2xl md:rounded-[2.5rem] border border-brand-light relative group overflow-hidden">
+                          <div className="absolute top-0 left-0 w-2 h-full bg-brand-accent opacity-20 group-hover:opacity-100 transition-all" />
                           
                           {block.repetitions > 1 && (
                             <div className="flex items-center gap-2 mb-3 md:mb-6 ml-2">
-                              <div className="bg-black text-white p-1.5 md:p-2 rounded-lg md:rounded-xl">
+                              <div className="bg-brand-dark text-white p-1.5 md:p-2 rounded-lg md:rounded-xl">
                                 <RotateCcw className="w-3.5 h-3.5 md:w-4 md:h-4" />
                               </div>
-                              <span className="font-black text-[9px] md:text-[10px] uppercase tracking-[0.2em] text-black">Répéter {block.repetitions} fois</span>
+                              <span className="font-black text-[9px] md:text-[10px] uppercase tracking-[0.2em] text-brand-dark">Répéter {block.repetitions} fois</span>
                             </div>
                           )}
 
                           <div className="space-y-2 md:space-y-4">
                             {block.intervals.map((interval, iIdx) => (
-                              <div key={iIdx} className="bg-white p-3 md:p-8 rounded-xl md:rounded-[2rem] border border-gray-100 flex flex-col md:flex-row md:items-center justify-between group/item hover:border-black transition-all shadow-sm">
+                              <div key={iIdx} className="bg-white p-3 md:p-8 rounded-xl md:rounded-[2rem] border border-brand-light flex flex-col md:flex-row md:items-center justify-between group/item hover:border-brand-primary transition-all shadow-sm">
                                 <div className="flex items-center gap-3 md:gap-8 mb-2 md:mb-0">
-                                  <div className="w-8 h-8 md:w-12 md:h-12 bg-gray-50 rounded-lg md:rounded-2xl flex items-center justify-center font-black text-sm md:text-base text-black border border-gray-100 group-hover/item:bg-black group-hover/item:text-white transition-all">
+                                  <div className="w-8 h-8 md:w-12 md:h-12 bg-brand-surface rounded-lg md:rounded-2xl flex items-center justify-center font-black text-sm md:text-base text-brand-dark border border-brand-light group-hover/item:bg-brand-primary group-hover/item:text-white transition-all">
                                     {iIdx + 1}
                                   </div>
                                   <div>
-                                    <div className="font-black uppercase tracking-tighter text-sm md:text-xl mb-0.5 md:mb-1">{interval.type}</div>
-                                    <div className="text-gray-400 font-bold text-[9px] md:text-[10px] uppercase tracking-widest flex items-center gap-2">
-                                      <span className="w-2 h-[2px] bg-yellow-400" />
+                                    <div className="font-black uppercase tracking-tighter text-sm md:text-xl mb-0.5 md:mb-1 text-brand-dark">{interval.type}</div>
+                                    <div className="text-brand-secondary font-bold text-[9px] md:text-[10px] uppercase tracking-widest flex items-center gap-2">
+                                      <span className="w-2 h-[2px] bg-brand-accent" />
                                       {workout.sport === 'cycling' ? (
                                         <>Puissance: {interval.power_watt_min}W {interval.power_watt_max && interval.power_watt_max !== interval.power_watt_min ? `- ${interval.power_watt_max}W` : ''}</>
                                       ) : (
@@ -724,9 +724,9 @@ export default function WorkoutDetailPage() {
                                     </div>
                                   </div>
                                 </div>
-                                <div className="flex md:block items-end justify-between border-t md:border-t-0 border-gray-200 pt-2 md:pt-0">
-                                  <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 md:hidden">Volume</span>
-                                  <div className="text-xl md:text-4xl font-black tracking-tighter text-black">
+                                <div className="flex md:block items-end justify-between border-t md:border-t-0 border-brand-surface pt-2 md:pt-0">
+                                  <span className="text-[9px] font-black uppercase tracking-widest text-brand-secondary md:hidden">Volume</span>
+                                  <div className="text-xl md:text-4xl font-black tracking-tighter text-brand-dark">
                                     {interval.duration || interval.distance}
                                     <span className="text-[10px] md:text-sm ml-1 md:ml-2 opacity-30 font-bold uppercase">{interval.duration !== undefined ? 'min' : 'm'}</span>
                                   </div>
@@ -743,14 +743,14 @@ export default function WorkoutDetailPage() {
             </section>
 
             {/* Validation Section */}
-            <section className="bg-black text-white rounded-[2rem] md:rounded-[3rem] p-6 md:p-16 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.3)] relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-yellow-400 rounded-bl-[10rem] opacity-5 -mr-16 -mt-16" />
+            <section className="bg-brand-dark text-white rounded-[2rem] md:rounded-[3rem] p-6 md:p-16 shadow-[0_40px_80px_-20px_rgba(30,58,138,0.3)] relative overflow-hidden border border-brand-primary/20">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-brand-accent rounded-bl-[10rem] opacity-5 -mr-16 -mt-16" />
               
               {!workout.is_validated ? (
                 <>
                   <div className="flex items-center gap-3 md:gap-4 mb-6 md:mb-12">
-                    <div className="w-10 h-10 md:w-12 md:h-12 bg-yellow-400 rounded-xl md:rounded-2xl flex items-center justify-center">
-                      <Activity className="w-5 h-5 md:w-6 md:h-6 text-black" />
+                    <div className="w-10 h-10 md:w-12 md:h-12 bg-brand-accent rounded-xl md:rounded-2xl flex items-center justify-center shadow-lg shadow-brand-accent/20">
+                      <Activity className="w-5 h-5 md:w-6 md:h-6 text-white" />
                     </div>
                     <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter">Valider la séance</h2>
                   </div>
@@ -759,7 +759,7 @@ export default function WorkoutDetailPage() {
                     <div className="space-y-4 md:space-y-6">
                       <div className="flex justify-between items-end">
                         <label className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] opacity-40">Difficulté ressentie</label>
-                        <div className="text-4xl md:text-6xl font-black text-yellow-400 leading-none">{perceivedDifficulty}<span className="text-base md:text-xl ml-2 opacity-30">/10</span></div>
+                        <div className="text-4xl md:text-6xl font-black text-brand-accent leading-none">{perceivedDifficulty}<span className="text-base md:text-xl ml-2 opacity-30">/10</span></div>
                       </div>
                       <input 
                         type="range" 
@@ -768,7 +768,7 @@ export default function WorkoutDetailPage() {
                         step="1"
                         value={perceivedDifficulty}
                         onChange={(e) => setPerceivedDifficulty(parseInt(e.target.value))}
-                        className="w-full h-3 md:h-4 bg-white/10 rounded-full appearance-none cursor-pointer accent-yellow-400"
+                        className="w-full h-3 md:h-4 bg-white/10 rounded-full appearance-none cursor-pointer accent-brand-accent"
                       />
                       <div className="flex justify-between text-[8px] md:text-[9px] font-black uppercase tracking-[0.3em] opacity-30">
                         <span>Facile</span>
@@ -779,7 +779,7 @@ export default function WorkoutDetailPage() {
 
                     <div className="space-y-4 md:space-y-6">
                       <label className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] opacity-40 flex items-center gap-3">
-                        <AlignLeft className="w-4 h-4 text-yellow-400" />
+                        <AlignLeft className="w-4 h-4 text-brand-accent" />
                         Compte-rendu de l'athlète
                       </label>
                       <textarea 
@@ -787,14 +787,14 @@ export default function WorkoutDetailPage() {
                         value={comment}
                         onChange={(e) => setComment(e.target.value)}
                         placeholder="Quelles sont vos sensations ? Des points d'attention particuliers ?"
-                        className="w-full bg-white/5 border border-white/10 rounded-2xl md:rounded-[2rem] p-4 md:p-8 text-white text-sm md:text-lg placeholder:text-white/10 focus:outline-none focus:border-yellow-400 focus:bg-white/10 transition-all min-h-[120px] md:min-h-[180px] font-medium"
+                        className="w-full bg-white/5 border border-white/10 rounded-2xl md:rounded-[2rem] p-4 md:p-8 text-white text-sm md:text-lg placeholder:text-white/10 focus:outline-none focus:border-brand-accent focus:bg-white/10 transition-all min-h-[120px] md:min-h-[180px] font-medium"
                       />
                     </div>
 
                     <button 
                       type="submit"
                       disabled={isValidating}
-                      className="w-full bg-yellow-400 hover:bg-yellow-300 text-black font-black uppercase tracking-[0.2em] text-xs md:text-sm py-5 md:py-8 rounded-2xl md:rounded-[2rem] transition-all shadow-[0_20px_40px_-10px_rgba(250,204,21,0.3)] active:scale-[0.98] flex items-center justify-center gap-3 md:gap-4 disabled:opacity-50 group"
+                      className="w-full bg-brand-primary hover:bg-brand-secondary text-white font-black uppercase tracking-[0.2em] text-xs md:text-sm py-5 md:py-8 rounded-2xl md:rounded-[2rem] transition-all shadow-[0_20px_40px_-10px_rgba(37,99,235,0.3)] active:scale-[0.98] flex items-center justify-center gap-3 md:gap-4 disabled:opacity-50 group border border-brand-primary/20"
                     >
                       {isValidating ? 'TRANSMISSION...' : (
                         <>
@@ -808,7 +808,7 @@ export default function WorkoutDetailPage() {
               ) : (
                 <div className="space-y-6 md:space-y-12">
                   <div className="flex items-center gap-3 md:gap-4 mb-6 md:mb-8">
-                    <div className="w-10 h-10 md:w-12 md:h-12 bg-green-500 rounded-xl md:rounded-2xl flex items-center justify-center">
+                    <div className="w-10 h-10 md:w-12 md:h-12 bg-green-500 rounded-xl md:rounded-2xl flex items-center justify-center shadow-lg shadow-green-500/20">
                       <CheckCircle2 className="w-5 h-5 md:w-6 md:h-6 text-white" />
                     </div>
                     <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter">Séance Enregistrée</h2>
@@ -816,12 +816,12 @@ export default function WorkoutDetailPage() {
                   
                   <div className="grid md:grid-cols-3 gap-6 md:gap-12 relative z-10">
                     <div className="space-y-2 md:space-y-4">
-                      <div className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] opacity-40 text-yellow-400">Ressenti</div>
+                      <div className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] opacity-40 text-brand-accent">Ressenti</div>
                       <div className="text-5xl md:text-7xl font-black">{workout.perceived_difficulty}<span className="text-lg md:text-2xl ml-2 opacity-20">/10</span></div>
                     </div>
                     <div className="md:col-span-2 space-y-2 md:space-y-4">
-                      <div className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] opacity-40 text-yellow-400">Commentaires</div>
-                      <div className="text-base md:text-2xl font-medium italic leading-relaxed border-l-4 border-yellow-400 pl-4 md:pl-8 py-2">
+                      <div className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] opacity-40 text-brand-accent">Commentaires</div>
+                      <div className="text-base md:text-2xl font-medium italic leading-relaxed border-l-4 border-brand-accent pl-4 md:pl-8 py-2">
                         "{workout.athlete_comment || "Aucun commentaire laissé."}"
                       </div>
                     </div>
@@ -832,9 +832,9 @@ export default function WorkoutDetailPage() {
                       <div className="w-8 h-8 md:w-10 md:h-10 bg-green-500/20 rounded-full flex items-center justify-center">
                         <CheckCircle2 className="w-4 h-4 md:w-5 md:h-5 text-green-500" />
                       </div>
-                      <div className="text-xs md:text-sm font-bold opacity-60">Transmission effectuée au coach</div>
+                      <div className="text-xs md:text-sm font-bold opacity-60 text-brand-secondary">Transmission effectuée au coach</div>
                     </div>
-                    <Link href="/" className="text-[10px] font-black uppercase tracking-[0.2em] hover:text-yellow-400 transition-colors">
+                    <Link href="/" className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-secondary hover:text-brand-accent transition-colors">
                       Retour à la vue d'ensemble →
                     </Link>
                   </div>
@@ -851,50 +851,50 @@ export default function WorkoutDetailPage() {
           onClick={() => setShowCatalogModal(false)}
         >
           <div
-            className="bg-white rounded-[2.5rem] p-8 max-w-2xl w-full shadow-2xl border border-gray-100 max-h-[90vh] overflow-y-auto"
+            className="bg-white rounded-[2.5rem] p-8 max-w-2xl w-full shadow-2xl border border-brand-light max-h-[90vh] overflow-y-auto"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
-                <div className="bg-yellow-400 p-2 rounded-xl">
-                  <BookOpen className="w-5 h-5 text-black" />
+                <div className="bg-brand-accent p-2 rounded-xl text-white shadow-lg shadow-brand-accent/20">
+                  <BookOpen className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-black uppercase tracking-tight">Sélectionner une séance du catalogue</h3>
+                  <h3 className="text-xl font-black text-brand-dark uppercase tracking-tight">Sélectionner une séance du catalogue</h3>
                   {athleteVma && (
-                    <p className="text-sm text-gray-500 font-medium mt-1">VMA de l'athlète : <span className="font-black text-black">{formatMinutesToMMSS(athleteVma)}/km</span></p>
+                    <p className="text-sm text-brand-secondary font-medium mt-1">VMA de l'athlète : <span className="font-black text-brand-dark">{formatMinutesToMMSS(athleteVma)}/km</span></p>
                   )}
                 </div>
               </div>
               <button
                 onClick={() => setShowCatalogModal(false)}
-                className="p-2 text-gray-400 hover:text-black hover:bg-gray-100 rounded-xl transition-all"
+                className="p-2 text-brand-secondary hover:text-brand-dark hover:bg-brand-surface rounded-xl transition-all"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
             
             {loadingCatalog ? (
-              <div className="text-center py-12 font-bold text-gray-400">Chargement du catalogue...</div>
+              <div className="text-center py-12 font-black uppercase text-brand-secondary tracking-widest animate-pulse">Chargement du catalogue...</div>
             ) : catalogWorkouts.length === 0 ? (
-              <div className="text-center py-12 font-bold text-gray-400">Aucune séance dans le catalogue</div>
+              <div className="text-center py-12 font-black uppercase text-brand-secondary tracking-widest">Aucune séance dans le catalogue</div>
             ) : (
               <div className="grid grid-cols-1 gap-4">
                 {catalogWorkouts.map((catalogWorkout) => (
                   <button
                     key={catalogWorkout.id}
                     onClick={() => handleSelectFromCatalog(catalogWorkout)}
-                    className="w-full bg-gray-50 hover:bg-black hover:text-white border border-gray-100 rounded-2xl p-6 text-left transition-all group"
+                    className="w-full bg-brand-surface hover:bg-brand-primary hover:text-white border border-brand-light rounded-2xl p-6 text-left transition-all group"
                   >
                     <div className="flex items-center justify-between">
                       <div>
-                        <h4 className="text-lg font-black uppercase tracking-tight group-hover:text-yellow-400">{catalogWorkout.name}</h4>
-                        <div className="flex items-center gap-4 mt-2 text-sm font-medium text-gray-500 group-hover:text-gray-300">
+                        <h4 className="text-lg font-black uppercase tracking-tight group-hover:text-brand-accent">{catalogWorkout.name}</h4>
+                        <div className="flex items-center gap-4 mt-2 text-sm font-medium text-brand-secondary group-hover:text-white/70">
                           <span className="text-[10px] font-black uppercase tracking-widest">{catalogWorkout.workout_type}</span>
                           <span className="text-[10px] font-black uppercase tracking-widest">Difficulté : {catalogWorkout.perceived_difficulty}/10</span>
                         </div>
                       </div>
-                      <div className="text-gray-400 group-hover:text-white">
+                      <div className="text-brand-primary group-hover:text-white">
                         <ChevronLeft className="w-5 h-5 transform -rotate-180" />
                       </div>
                     </div>
@@ -906,7 +906,7 @@ export default function WorkoutDetailPage() {
             <div className="mt-8 flex justify-end">
               <button
                 onClick={() => setShowCatalogModal(false)}
-                className="px-6 py-3 bg-gray-100 text-gray-600 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-200 transition-all"
+                className="px-6 py-3 bg-brand-surface text-brand-dark rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-brand-light transition-all border border-brand-light"
               >
                 Annuler
               </button>
@@ -930,28 +930,28 @@ export default function WorkoutDetailPage() {
            onClick={() => setShowGarminHelp(false)}
          >
            <div
-             className="bg-white rounded-2xl md:rounded-[2rem] max-w-md w-full p-6 md:p-8 space-y-5"
+             className="bg-white rounded-2xl md:rounded-[2rem] max-w-md w-full p-6 md:p-8 space-y-5 border border-brand-light shadow-2xl"
              onClick={e => e.stopPropagation()}
            >
              <div className="flex items-center gap-3">
-               <div className="bg-black p-2.5 rounded-xl">
+               <div className="bg-brand-dark p-2.5 rounded-xl shadow-lg shadow-brand-dark/10">
                  <Watch className="w-5 h-5 text-white" />
                </div>
-               <h3 className="text-lg font-black uppercase tracking-tight">Fichier Garmin téléchargé</h3>
+               <h3 className="text-lg font-black text-brand-dark uppercase tracking-tight">Fichier Garmin téléchargé</h3>
              </div>
-             <p className="text-sm text-gray-600 font-medium leading-relaxed">
-               Votre séance <strong>{workout.name}</strong> a été exportée au format{' '}
-               <strong>.fit</strong>. Pour l'importer dans Garmin Connect :
+             <p className="text-sm text-brand-secondary font-medium leading-relaxed">
+               Votre séance <strong className="text-brand-dark">{workout.name}</strong> a été exportée au format{' '}
+               <strong className="text-brand-dark">.fit</strong>. Pour l'importer dans Garmin Connect :
              </p>
-             <ol className="space-y-2 text-sm text-gray-600 font-medium list-decimal list-inside">
-               <li>Ouvrez <strong>connect.garmin.com</strong> depuis un navigateur (l'import n'est pas possible depuis l'app mobile)</li>
-               <li>Allez dans <strong>Training / Entraînements</strong> → <strong>Workouts / Entraînements</strong></li>
-               <li>Cliquez sur <strong>Importer</strong> (icône + ou roue dentée selon la version) et sélectionnez le fichier <strong>.fit</strong> téléchargé</li>
+             <ol className="space-y-2 text-sm text-brand-secondary font-medium list-decimal list-inside">
+               <li>Ouvrez <strong className="text-brand-dark">connect.garmin.com</strong> depuis un navigateur (l'import n'est pas possible depuis l'app mobile)</li>
+               <li>Allez dans <strong className="text-brand-dark">Training / Entraînements</strong> → <strong className="text-brand-dark">Workouts / Entraînements</strong></li>
+               <li>Cliquez sur <strong className="text-brand-dark">Importer</strong> (icône + ou roue dentée selon la version) et sélectionnez le fichier <strong className="text-brand-dark">.fit</strong> téléchargé</li>
                <li>La séance apparaît dans vos entraînements et se synchronise automatiquement vers votre montre Garmin</li>
              </ol>
              <button
                onClick={() => setShowGarminHelp(false)}
-               className="w-full bg-black text-white font-black uppercase text-xs tracking-widest py-4 rounded-2xl hover:bg-gray-800 transition-all"
+               className="w-full bg-brand-primary text-white font-black uppercase text-xs tracking-widest py-4 rounded-2xl hover:bg-brand-secondary transition-all shadow-lg shadow-brand-primary/20"
              >
                Compris
              </button>
