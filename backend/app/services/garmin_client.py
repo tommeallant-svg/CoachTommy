@@ -91,16 +91,22 @@ class GarminClient:
             # Si le login via token échoue (ex: expiré), on marque comme non authentifié
             print(f"Garmin token login with password failed: {e}")
             self.is_authenticated = False
-            return 0
+            return None
         
     def get_token_dict(self):
         """
         Retourne les tokens d'accès sous forme de dictionnaire.
         """
-        if not hasattr(self.client, 'login_token_store') or not self.client.login_token_store:
+        try:
+            # On utilise la méthode dumps() du client interne de garminconnect
+            # qui est gérée par garth/client
+            if hasattr(self.client, 'client'):
+                tokens_json = self.client.client.dumps()
+                return json.loads(tokens_json)
             return None
-            
-        return self.client.login_token_store
+        except Exception as e:
+            print(f"Error dumping tokens: {e}")
+            return None
 
     def logout(self):
         """Se déconnecte de Garmin Connect."""
