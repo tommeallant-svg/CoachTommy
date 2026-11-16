@@ -6,6 +6,7 @@
 import re
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from ..database import get_db
@@ -126,7 +127,11 @@ def read_workouts(skip: int = 0, limit: int = 100, athlete_id: Optional[int] = N
         
     return db.query(Workout).join(Plan, Workout.plan_id == Plan.id, isouter=True).filter(
         Workout.athlete_id == target_athlete_id,
-        (Plan.id == None) | (Plan.is_archived == False)
+        or_(
+            Plan.id == None,
+            Plan.is_archived == False,
+            Workout.is_validated == True
+        )
     ).order_by(Workout.date.asc()).offset(skip).limit(limit).all()
 
 @router.get("/{workout_id}", response_model=WorkoutResponse)

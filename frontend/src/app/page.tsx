@@ -36,6 +36,7 @@ import {
   Plus,
   LogOut,
   Users,
+  Archive,
   Dumbbell,
   Watch,
   Droplets
@@ -251,8 +252,8 @@ function CalendarPageContent() {
   const handleDeletePlan = async () => {
     if (!currentPlan) return;
     const msg = athleteId 
-      ? "Êtes-vous sûr de vouloir supprimer le plan d'entraînement actif de cet athlète ? Toutes les séances non validées seront supprimées."
-      : "Êtes-vous sûr de vouloir supprimer votre plan d'entraînement actif ? Toutes les séances non validées seront supprimées.";
+      ? "Êtes-vous sûr de vouloir supprimer COMPLÈTEMENT le plan d'entraînement de cet athlète ainsi que TOUTES ses séances associées ? Cette action est irréversible."
+      : "Êtes-vous sûr de vouloir supprimer COMPLÈTEMENT votre plan d'entraînement ainsi que TOUTES vos séances associées ? Cette action est irréversible.";
     
     if (!confirm(msg)) return;
     
@@ -269,6 +270,32 @@ function CalendarPageContent() {
       }
     } catch (error) {
       console.error("Error deleting plan:", error);
+    }
+  };
+
+  const handleArchivePlan = async () => {
+    if (!currentPlan) return;
+    const msg = athleteId 
+      ? "Voulez-vous archiver le plan actuel de cet athlète ? Les séances passées validées resteront visibles, mais les séances futures seront masquées. L'athlète pourra alors commencer un nouveau plan."
+      : "Voulez-vous archiver votre plan actuel ? Vos séances passées validées resteront visibles, mais les séances futures seront masquées. Vous pourrez alors commencer un nouveau plan.";
+    
+    if (!confirm(msg)) return;
+    
+    try {
+      const response = await fetchWithAuth(`/api/plans/${currentPlan.id}/archive`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cancellation_comment: "Archivé par l'utilisateur" })
+      });
+      
+      if (response.ok) {
+        setCurrentPlan(null);
+        fetchWorkouts(athleteId);
+      } else {
+        alert("Erreur lors de l'archivage du plan");
+      }
+    } catch (error) {
+      console.error("Error archiving plan:", error);
     }
   };
 
@@ -362,6 +389,14 @@ function CalendarPageContent() {
               <CheckCircle2 className="w-4 h-4" />
               <span>Plan: {currentPlan.race_name}</span>
             </div>
+            <button
+              onClick={handleArchivePlan}
+              className="flex items-center gap-2 bg-brand-surface text-brand-primary px-4 md:px-6 py-3 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-brand-light transition-all border border-brand-light"
+              title="Archiver le plan"
+            >
+              <Archive className="w-4 h-4" />
+              <span>Archiver</span>
+            </button>
             <button
               onClick={handleDeletePlan}
               className="flex items-center gap-2 bg-rose-50 text-rose-600 px-4 md:px-6 py-3 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-rose-100 transition-all border border-rose-100"

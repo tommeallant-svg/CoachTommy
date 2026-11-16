@@ -24,7 +24,7 @@ class PlanCreate(PlanBase):
     athlete_id: Optional[int] = None
 
 class PlanArchive(BaseModel):
-    cancellation_comment: str
+    cancellation_comment: Optional[str] = None
 
 class PlanResponse(PlanBase):
     id: int
