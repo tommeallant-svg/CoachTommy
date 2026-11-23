@@ -3,8 +3,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from .database import engine, Base
-from .api import workouts, auth, plans, catalog, coach, garmin, strava
-from .models import user, workout, plan, catalog as catalog_model
+from .api import workouts, auth, plans, catalog, coach, garmin, strava, community
+from .models import user, workout, plan, catalog as catalog_model, community as community_model
 from .strava_migration import migrate_strava
 from .auth import jwt_secret_key
 
@@ -45,6 +45,7 @@ app.include_router(catalog.router, prefix="/api")
 app.include_router(coach.router, prefix="/api")
 app.include_router(garmin.router, prefix="/api")
 app.include_router(strava.router, prefix="/api")
+app.include_router(community.router, prefix="/api")
 
 @app.get("/")
 def read_root():

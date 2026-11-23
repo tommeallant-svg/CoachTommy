@@ -8,6 +8,7 @@ from app.models.workout import Workout
 from app.models.user import User
 from app.models.plan import Plan
 from app.models.catalog import CatalogWorkout
+from app.models.community import Friendship
 from app.auth import get_password_hash
 from app.strava_migration import migrate_strava
 

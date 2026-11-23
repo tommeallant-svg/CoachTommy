@@ -22,6 +22,7 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
     { href: '/', label: 'Calendrier' },
     { href: '/profile', label: 'Profil' },
     { href: '/plans', label: 'Plan' },
+    { href: '/community', label: 'Communauté' },
     ...(role === 'coach' ? [{ href: '/coach', label: 'Coach' }] : []),
   ];
   return (
