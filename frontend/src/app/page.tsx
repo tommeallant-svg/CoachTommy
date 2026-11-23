@@ -190,6 +190,10 @@ function CalendarPageContent() {
       })
       .catch(err => console.error("Erreur récup user:", err));
 
+    setCurrentPlan(null);
+    setWorkouts([]);
+    setSelectedWorkout(null);
+    setIsSideMenuOpen(false);
     fetchWorkouts(athleteId);
     fetchCurrentPlan(athleteId);
     checkGarminStatus();
@@ -247,6 +251,8 @@ function CalendarPageContent() {
       if (response.ok) {
         const data = await response.json();
         setCurrentPlan(data);
+      } else {
+        setCurrentPlan(null);
       }
     } catch (error) {
       console.error('Failed to fetch plan:', error);
@@ -308,10 +314,12 @@ function CalendarPageContent() {
     }
   };
 
+  const planWorkouts = currentPlan ? workouts.filter(w => w.plan_id === currentPlan.id) : [];
+
   const calculateWeeklyLoad = () => {
     const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
     const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
-    const weekWorkouts = (Array.isArray(workouts) ? workouts : []).filter(w => {
+    const weekWorkouts = planWorkouts.filter(w => {
       const d = parseISO(w.date);
       return d >= weekStart && d <= weekEnd;
     });
@@ -512,7 +520,7 @@ function CalendarPageContent() {
       <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
         <div className="grid grid-cols-7 auto-rows-fr border-l border-b border-brand-light overflow-hidden rounded-b-[2rem] shadow-2xl bg-white">
           {days.map((day, idx) => {
-            const dayWorkouts = (Array.isArray(workouts) ? workouts : []).filter(w => isSameDay(parseISO(w.date), day));
+            const dayWorkouts = planWorkouts.filter(w => isSameDay(parseISO(w.date), day));
             const isToday = isSameDay(day, new Date());
             const isNotCurrentMonth = !isSameMonth(day, monthStart) && view === 'month';
 

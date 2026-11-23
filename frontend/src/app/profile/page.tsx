@@ -105,7 +105,7 @@ export default function ProfilePage() {
           {userError && <p role="alert" className="text-red-700">{userError} <button className="underline" onClick={loadUser}>Réessayer</button></p>}
           {user ? <>
             <p className="break-all">{user.email}</p>
-            <p>VMA : <strong>{user.vma != null ? `${user.vma} km/h` : 'Non renseignée'}</strong></p>
+            <p>VMA : <strong>{user.vma != null ? `${user.vma.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} km/h` : 'Non renseignée'}</strong></p>
             <p>FTP : <strong>{user.ftp != null ? `${user.ftp} W` : 'Non renseignée'}</strong></p>
             <button className={buttonClass} onClick={() => setShowStats(true)}>Modifier mes statistiques</button>
           </> : !userError && <p>Chargement du profil…</p>}
