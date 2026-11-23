@@ -3,10 +3,10 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { fetchWithAuth, getAuthToken } from '@/lib/api';
+import FriendCalendar, { SharedWorkout } from '@/components/FriendCalendar';
 
 type Connection = { id: number; person: { id: number; email: string }; direction: 'sent' | 'received' };
-type Workout = { name: string | null; date: string; sport: string | null; duration_minutes: number | null; distance_km: number | null; description: string | null; scheme: unknown[] | null };
-type Plan = { workouts: Workout[] };
+type Plan = { workouts: SharedWorkout[] };
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetchWithAuth(url, options);
@@ -140,7 +140,7 @@ export default function CommunityPage() {
         {selected && <section className="rounded-2xl bg-white p-5 shadow-sm" aria-labelledby="plan-heading">
           <div className="flex flex-wrap items-center justify-between gap-3"><h2 id="plan-heading" className="break-all text-xl font-black text-brand-dark">Plan actif de {selected.person.email}</h2><button type="button" className={button} onClick={() => setSelected(null)}>Fermer le plan</button></div>
           <p className="mt-2 text-sm">Consultation en lecture seule.</p>
-          {planLoading ? <p role="status" className="mt-4">Chargement du plan...</p> : planError ? <p role="alert" className="mt-4 text-red-700">{planError} <button type="button" className="underline" onClick={() => setSelected({ ...selected })}>Réessayer</button></p> : !plan ? <p className="mt-4">Aucun plan actif.</p> : plan.workouts.length === 0 ? <p className="mt-4">Ce plan ne contient aucune séance.</p> : <ul className="mt-4 space-y-4">{plan.workouts.map((workout, index) => <li key={index} className="rounded-xl border p-4"><h3 className="font-bold">{workout.name || 'Séance sans nom'}</h3><dl className="mt-2 space-y-1"><div><dt className="inline font-bold">Date : </dt><dd className="inline">{new Date(`${workout.date.slice(0, 10)}T12:00:00`).toLocaleDateString('fr-FR')}</dd></div><div><dt className="inline font-bold">Sport : </dt><dd className="inline">{workout.sport || 'Non renseigné'}</dd></div><div><dt className="inline font-bold">Durée : </dt><dd className="inline">{workout.duration_minutes != null ? `${workout.duration_minutes} min` : 'Non renseignée'}</dd></div><div><dt className="inline font-bold">Distance : </dt><dd className="inline">{workout.distance_km != null ? `${workout.distance_km} km` : 'Non renseignée'}</dd></div></dl>{workout.description && <div className="mt-3"><h4 className="font-bold">Description</h4><p className="whitespace-pre-wrap break-words">{workout.description}</p></div>}{workout.scheme && workout.scheme.length > 0 && <div className="mt-3"><h4 className="font-bold">Structure</h4><pre className="overflow-x-auto whitespace-pre-wrap break-words text-sm">{JSON.stringify(workout.scheme, null, 2)}</pre></div>}</li>)}</ul>}
+          {planLoading ? <p role="status" className="mt-4">Chargement du plan...</p> : planError ? <p role="alert" className="mt-4 text-red-700">{planError} <button type="button" className="underline" onClick={() => setSelected({ ...selected })}>Réessayer</button></p> : !plan ? <p className="mt-4">Aucun plan actif.</p> : <>{plan.workouts.length === 0 && <p className="mt-4">Ce plan ne contient aucune séance.</p>}<FriendCalendar key={selected.person.id} workouts={plan.workouts} /></>}
         </section>}
       </div>
     </main>
