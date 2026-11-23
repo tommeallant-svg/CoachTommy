@@ -21,13 +21,14 @@ import {
   Users,
   RefreshCw
 } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import Link from 'next/link';
 import { Workout, WorkoutInterval, WorkoutBlock } from '@/types/workout';
 import { fetchWithAuth, getAuthUser } from '@/lib/api';
 import { Save, Edit2, Trash2 } from 'lucide-react';
 import GarminAuthModal from '@/components/GarminAuthModal';
+import { createCalendarEvent, createGoogleCalendarUrl, createIcsCalendar } from '@/lib/calendarExport';
 
 // Fonction utilitaire pour convertir les minutes en format mm:ss
 const formatMinutesToMMSS = (minutes: number): string => {
@@ -84,6 +85,8 @@ export default function WorkoutDetailPage() {
   const [isCheckingGarmin, setIsCheckingGarmin] = useState(false);
   const [pushError, setPushError] = useState<string | null>(null);
   const [pushSuccess, setPushSuccess] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [calendarDuration, setCalendarDuration] = useState('');
   
   useEffect(() => {
     const authUser = getAuthUser();
@@ -399,6 +402,40 @@ export default function WorkoutDetailPage() {
   if (loading) return <div className="min-h-screen flex items-center justify-center">Chargement...</div>;
   if (!workout) return <div className="min-h-screen flex items-center justify-center">Séance non trouvée</div>;
 
+  const needsCalendarDuration = !Number.isInteger(workout.duration_minutes) || workout.duration_minutes <= 0;
+  const calendarWorkout = {
+    name: workout.name,
+    date: workout.date,
+    duration_minutes: needsCalendarDuration ? Number(calendarDuration) : workout.duration_minutes,
+    description: workout.description,
+  };
+  let calendarDate: Date | null = null;
+  let calendarError: string | null = null;
+  let googleCalendarUrl: string | null = null;
+  try {
+    calendarDate = createCalendarEvent({ ...calendarWorkout, duration_minutes: 1 }).start;
+    createCalendarEvent(calendarWorkout);
+    googleCalendarUrl = createGoogleCalendarUrl(calendarWorkout);
+  } catch (error) {
+    calendarError = error instanceof Error ? error.message : 'Impossible de préparer le calendrier';
+  }
+
+  const handleIcsDownload = () => {
+    try {
+      const blob = new Blob([createIcsCalendar(calendarWorkout)], { type: 'text/calendar;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${(workout.name || 'seance').replace(/[^A-Za-z0-9_.-]+/g, '_')}.ics`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Impossible de créer le fichier calendrier');
+    }
+  };
+
   return (
     <main className="min-h-screen bg-brand-surface pb-20 font-sans">
       {/* Header compact sur mobile */}
@@ -432,7 +469,7 @@ export default function WorkoutDetailPage() {
                 <CheckCircle2 className="w-3.5 h-3.5 md:w-4 md:h-4" /> Validée
               </span>
             )}
-            <span className="hidden sm:inline text-brand-secondary font-bold uppercase text-[10px] tracking-widest">{format(parseISO(workout.date), 'd MMMM yyyy', { locale: fr })}</span>
+            <span className="hidden sm:inline text-brand-secondary font-bold uppercase text-[10px] tracking-widest">{calendarDate ? format(calendarDate, 'd MMMM yyyy', { locale: fr }) : 'Date invalide'}</span>
           </div>
         </div>
       </div>
@@ -606,10 +643,10 @@ export default function WorkoutDetailPage() {
                   <div className="flex items-center gap-4 md:gap-6 text-brand-secondary font-black uppercase text-[9px] md:text-[10px] tracking-[0.2em]">
                     <div className="flex items-center gap-2">
                       <Calendar className="w-4 h-4" />
-                      {format(parseISO(workout.date), 'EEEE d MMMM', { locale: fr })}
+                      {calendarDate ? format(calendarDate, 'EEEE d MMMM', { locale: fr }) : 'Date de séance invalide'}
                     </div>
                   </div>
-                  <div className="flex gap-2 mt-4 md:mt-6">
+                  <div className="flex flex-wrap gap-2 mt-4 md:mt-6">
                     <button
                       onClick={handleGarminExport}
                       disabled={isCheckingGarmin}
@@ -630,7 +667,46 @@ export default function WorkoutDetailPage() {
                       )}
                       {garminConnected ? 'Envoyer vers Garmin' : 'Connecter à Garmin'}
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowCalendar(!showCalendar)}
+                      aria-expanded={showCalendar}
+                      aria-controls="calendar-export"
+                      className="flex items-center gap-2 bg-brand-surface text-brand-dark px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-brand-light transition-all border border-brand-light"
+                    >
+                      <Calendar className="w-4 h-4" /> Ajouter à mon calendrier
+                    </button>
                   </div>
+                  {showCalendar && (
+                    <div id="calendar-export" className="mt-4 p-4 bg-brand-surface border border-brand-light rounded-xl space-y-4 text-sm text-brand-dark">
+                      <p>Heure locale proposée : {calendarDate ? format(calendarDate, "EEEE d MMMM yyyy 'à' HH:mm", { locale: fr }) : 'date de séance invalide'}.</p>
+                      {needsCalendarDuration && (
+                        <div className="space-y-2">
+                          <label htmlFor="calendar-duration" className="block font-bold">Durée pour le calendrier (minutes)</label>
+                          <input
+                            id="calendar-duration"
+                            type="number"
+                            min="1"
+                            step="1"
+                            inputMode="numeric"
+                            value={calendarDuration}
+                            onChange={e => setCalendarDuration(e.target.value)}
+                            aria-describedby="calendar-error"
+                            className="w-full sm:w-40 px-4 py-3 rounded-xl border border-brand-light bg-white text-brand-dark"
+                          />
+                        </div>
+                      )}
+                      {calendarError && <p id="calendar-error" role="alert" className="text-red-700">{calendarError === 'Durée de séance invalide' ? 'Indiquez une durée entière positive en minutes.' : calendarError}</p>}
+                      <p>Google Agenda s’ouvre dans le navigateur : vous devez y confirmer l’ajout. Pour Calendrier sur iPhone ou une autre application, ouvrez le fichier ICS téléchargé et confirmez l’ajout ; son ouverture dépend de votre navigateur.</p>
+                      <p>Aucune synchronisation automatique : les modifications ne sont pas répercutées et chaque ajout peut créer un doublon.</p>
+                      <div className="flex flex-wrap gap-2">
+                        {googleCalendarUrl && (
+                          <a href={googleCalendarUrl} target="_blank" rel="noopener noreferrer" className="px-4 py-3 rounded-xl bg-brand-primary text-white font-bold">Google Agenda (nouvel onglet)</a>
+                        )}
+                        <button type="button" onClick={handleIcsDownload} disabled={!googleCalendarUrl} className="px-4 py-3 rounded-xl bg-brand-dark text-white font-bold disabled:opacity-50">Télécharger le fichier ICS</button>
+                      </div>
+                    </div>
+                  )}
                   {pushError && (
                     <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl">
                       <div className="flex items-center justify-between gap-3">
