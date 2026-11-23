@@ -94,7 +94,7 @@ class WorkoutApiTests(unittest.TestCase):
                 'start_date': '2026-12-07T00:00:00', 'sessions_per_week': 3,
                 'goal_type': 'finish', 'training_days': [1, 3, 5], 'estimated_vma': 4,
                 'athlete_id': self.athlete.id}
-        with patch('app.api.plans.PlanGenerator.generate', return_value=[]):
+        with patch('app.services.plans.PlanGenerator.generate', return_value=[]):
             response = self.client.post('/api/plans', json=data)
         self.assertEqual(response.status_code, 200, response.text)
         self.db.refresh(self.athlete)
@@ -116,7 +116,7 @@ class WorkoutApiTests(unittest.TestCase):
         data = {'race_name': '10 km', 'race_date': '2027-02-01T00:00:00', 'race_distance': 10,
                 'start_date': '2026-12-07T00:00:00', 'sessions_per_week': 3,
                 'goal_type': 'finish', 'training_days': [1, 3, 5], 'estimated_vma': 4}
-        with patch('app.api.plans.PlanGenerator.generate', return_value=[]):
+        with patch('app.services.plans.PlanGenerator.generate', return_value=[]):
             response = self.client.post('/api/plans', json=data)
         self.assertEqual(response.status_code, 422, response.text)
         self.db.refresh(self.coach)
@@ -154,7 +154,7 @@ class WorkoutApiTests(unittest.TestCase):
                 'start_date': '2026-12-07T00:00:00', 'sessions_per_week': 3,
                 'goal_type': 'finish', 'training_days': [1, 3, 5], 'estimated_vma': 4,
                 'athlete_id': self.athlete.id}
-        with patch('app.api.plans.PlanGenerator.generate', side_effect=ValueError('erreur')):
+        with patch('app.services.plans.PlanGenerator.generate', side_effect=ValueError('erreur')):
             response = self.client.post('/api/plans', json=data)
         self.assertEqual(response.status_code, 422)
         self.db.refresh(self.athlete)

@@ -3,8 +3,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from .database import engine, Base
-from .api import workouts, auth, plans, catalog, coach, garmin, strava, community
-from .models import user, workout, plan, catalog as catalog_model, community as community_model
+from .api import workouts, auth, plans, catalog, coach, garmin, strava, community, ai_access, ai_plans, ai_workouts
+from .models import user, workout, plan, catalog as catalog_model, community as community_model, ai_access as ai_access_model
 from .strava_migration import migrate_strava
 from .auth import jwt_secret_key
 
@@ -30,6 +30,14 @@ for i in range(5):
 
 app = FastAPI(title="Application Entrainement API")
 
+@app.middleware("http")
+async def no_cache_ai_access(request, call_next):
+    response = await call_next(request)
+    if request.url.path == "/api/ai-access" or request.url.path.startswith("/api/ai-access/"):
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Pragma"] = "no-cache"
+    return response
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -46,6 +54,9 @@ app.include_router(coach.router, prefix="/api")
 app.include_router(garmin.router, prefix="/api")
 app.include_router(strava.router, prefix="/api")
 app.include_router(community.router, prefix="/api")
+app.include_router(ai_access.router, prefix="/api")
+app.include_router(ai_plans.router, prefix="/api")
+app.include_router(ai_workouts.router, prefix="/api")
 
 @app.get("/")
 def read_root():

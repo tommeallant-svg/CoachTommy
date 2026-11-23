@@ -48,6 +48,51 @@ L'import, les webhooks et l'interface ne sont pas encore implémentés. Avant ac
 
 Le serveur fourni désactive ses journaux d'accès, mais les proxies doivent également masquer les paramètres OAuth. Dans Kubernetes, créez préalablement le secret `application-entrainement-secrets` avec la clé `jwt-secret-key`, sans la stocker dans les manifestes.
 
+## API pour une intégration IA
+
+Cette API permet à un client externe d'accéder aux plans et séances d'un seul athlète ; elle ne fournit pas elle-même un assistant IA. Les routes et schémas complets sont disponibles dans `/docs` sur l'instance déployée. Le client doit rendre l'URL de base configurable et utiliser une URL HTTPS publique en production (terminaison TLS et certificat valide à configurer sur le déploiement). `http://localhost:8000` est réservé au développement local.
+
+### Clé d'accès
+
+Un athlète authentifié avec son JWT habituel peut appeler `GET /api/ai-access` pour obtenir `{"active": true}` ou `false`, `POST /api/ai-access` pour générer ou renouveler sa clé, et `DELETE /api/ai-access` pour la révoquer (204). Ces routes refusent les coachs (403). La clé `ct_ai_...` n'est retournée en clair qu'à la génération ; seul son hash est conservé. Une rotation invalide immédiatement l'ancienne clé. Stockez la nouvelle dans un gestionnaire de secrets, ne la mettez ni dans le dépôt, ni dans les journaux, ni dans une URL ; révoquez-la si elle est compromise.
+
+Les routes `/api/ai/...` utilisent `Authorization: Bearer <clé IA>`, et non le JWT de connexion. Une clé absente, invalide ou révoquée renvoie 401. Exemple générique, après avoir configuré les variables localement sans enregistrer la clé dans un script :
+
+```bash
+curl --fail-with-body "$API_BASE_URL/api/ai/workouts?skip=0&limit=100" \
+  -H "Authorization: Bearer $AI_ACCESS_KEY"
+```
+
+Ici `API_BASE_URL` désigne l'origine HTTPS de l'instance, sans `/api`, et `AI_ACCESS_KEY` la clé obtenue par l'athlète. Ne transmettez cette clé qu'à un client de confiance : elle autorise aussi des modifications et la suppression de plans.
+
+### Routes et contrats
+
+| Méthode et route | Résultat ou action |
+| --- | --- |
+| `GET /api/ai/plans/current` | Plan actif ou `null`. |
+| `GET /api/ai/plans/history` | Liste paginée des plans archivés, par date de course puis identifiant décroissants. |
+| `GET /api/ai/plans/{plan_id}` | Plan, actif ou archivé. |
+| `GET /api/ai/plans/{plan_id}/weekly-stats` | Statistiques hebdomadaires des séances liées. |
+| `POST /api/ai/plans` | Crée un plan et génère ses séances ; réponse 200. |
+| `POST /api/ai/plans/{plan_id}/archive` | Archive le plan ; corps JSON avec `cancellation_comment` facultatif, par exemple `{}`. |
+| `DELETE /api/ai/plans/{plan_id}` | Supprime définitivement le plan et toutes ses séances liées en cascade, même validées ; réponse 204. L'archivage, lui, conserve les séances. |
+| `GET /api/ai/workouts` | Liste paginée des séances de l'athlète. |
+| `GET /api/ai/workouts/{workout_id}` | Détail d'une séance. |
+| `POST /api/ai/workouts` | Crée une séance indépendante ; réponse 201. |
+| `PATCH /api/ai/workouts/{workout_id}` | Modifie partiellement une séance. |
+
+La création d'un plan attend `race_name`, `race_date`, `race_distance` (km), `start_date`, `sessions_per_week`, `goal_type`, `training_days` et `estimated_vma` ; `race_estimated_time` est facultatif. Les dates sont des date-heures ISO 8601, le début doit être un lundi et la course ultérieure ; la distance et `estimated_vma` doivent être positives, et le nombre de séances compris entre 1 et 7. `estimated_vma` est une allure en minutes décimales par kilomètre : sa création met à jour la VMA du profil en km/h (`60 / estimated_vma`). `training_days` est une liste de jours (0 lundi à 6 dimanche) ou un objet associant jours et catégories ; les objectifs acceptés sont `plaisir`, `maintien`, `mixte`, `intensité` et `trail`. Un plan actif existant entraîne une erreur 400.
+
+Pour une séance, `workout_type`, `name`, `duration_minutes`, `difficulty_level` (1 à 10) et `date` sont obligatoires à la création ; `sport` vaut `running` par défaut. `category`, `distance_km`, `description` et `scheme` sont facultatifs. Le schéma est une liste de blocs `repetitions` (entier au moins égal à 1, défaut 1) et `intervals` ; chaque intervalle accepte `type`, `duration` en minutes, `distance` en mètres, `pace_min`, `pace_max` en min/km et `power_watt_min`/`power_watt_max`. Chaque intervalle doit avoir une durée ou une distance avec allure. Un schéma non vide recalcule durée et distance en tenant compte des répétitions ; la distance totale peut être `null` si elle est indéterminable. La charge estimée est calculée par le serveur.
+
+Les corps IA refusent les champs supplémentaires, notamment `athlete_id`, `plan_id`, les champs de validation et commentaires athlète ; ils ne permettent ni de choisir un autre destinataire, ni de valider ou supprimer directement une séance. Les identifiants hors du périmètre de l'athlète renvoient 404. Les entrées invalides renvoient 422 ; les méthodes non disponibles peuvent renvoyer 405. Les routes de plans refusent également les paramètres de requête inconnus.
+
+### Pagination et confidentialité
+
+Les listes `history` et `workouts` prennent `skip` (défaut 0, minimum 0) et `limit` (défaut 100, de 1 à 500). Parcourez les pages jusqu'à obtenir moins de `limit` résultats. Les séances sont triées par date puis identifiant croissants ; `date_from` est inclusif et `date_to` exclusif. Une plage inversée renvoie 422. Par défaut, `include_archived=true` inclut les séances des plans archivés. Avec `include_archived=false`, les séances sans plan et celles des plans actifs restent visibles, ainsi que les séances validées ou passées des plans archivés ; seules leurs séances futures non validées sont exclues.
+
+L'accès IA est limité aux plans et séances de l'athlète associé à la clé, pas aux autres athlètes ni aux routes Strava. Ne transmettez pas de données Strava à un service IA ou à un coach sans vérifier les autorisations et conditions applicables. L'intégration externe doit être développée et vérifiée pour le client choisi : aucune compatibilité universelle, configuration automatique ou intégration native à un assistant particulier n'est garantie ; le frontend actuel ne fournit pas de gestion de clé IA.
+
 ## Déploiement Kubernetes
 
 ```bash

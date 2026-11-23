@@ -4,11 +4,10 @@
 #   - route GET /api/workouts/{workout_id}/garmin -> téléchargement du fichier .fit
 
 import re
-from copy import deepcopy
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
-from sqlalchemy import or_, func
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from ..database import get_db
@@ -21,7 +20,7 @@ from ..schemas.workout import WorkoutCreate, WorkoutResponse, WorkoutUpdate, Wor
 from ..auth import get_current_user
 from ..services.garmin_export import generate_workout_fit
 from ..services.garmin_mapper import GarminMapper
-from ..services.workout_volumes import calculate_volumes
+from ..services.workouts import calculate_load, create_workout as create_workout_service, list_workouts, update_workout as update_workout_service
 from garminconnect import (
     GarminConnectAuthenticationError,
     GarminConnectTooManyRequestsError,
@@ -30,21 +29,12 @@ from garminconnect import (
 
 router = APIRouter(prefix="/workouts", tags=["workouts"])
 
-def calculate_load(duration_minutes: int, difficulty_level: int) -> float:
-    return duration_minutes + duration_minutes * difficulty_level / 5
-
 def format_pace(duration_min, distance_km):
     if distance_km <= 0: return "0:00"
     pace_decimal = duration_min / distance_km
     minutes = int(pace_decimal)
     seconds = int((pace_decimal - minutes) * 60)
     return f"{minutes}:{seconds:02d}"
-
-def workout_volumes(scheme):
-    try:
-        return calculate_volumes(scheme)
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc))
 
 def accessible_workouts(db, current_user):
     query = db.query(Workout)
@@ -55,7 +45,7 @@ def accessible_workouts(db, current_user):
 
 @router.post("", response_model=WorkoutResponse, status_code=status.HTTP_201_CREATED)
 def create_workout(workout: WorkoutCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    db_workout = Workout(**workout.model_dump())
+    athlete_id = current_user.id
     
     # Si athlete_id est fourni et l'utilisateur est un coach, on l'utilise
     if workout.athlete_id and current_user.role == "coach":
@@ -63,17 +53,8 @@ def create_workout(workout: WorkoutCreate, db: Session = Depends(get_db), curren
         athlete = db.query(User).filter(User.id == workout.athlete_id).first()
         if not athlete or (athlete.id != current_user.id and (athlete.role != "athlete" or athlete.coach_id != current_user.id)):
             raise HTTPException(status_code=404, detail="Athlète non trouvé")
-        db_workout.athlete_id = workout.athlete_id
-    else:
-        db_workout.athlete_id = current_user.id
-        
-    if db_workout.scheme:
-        db_workout.duration_minutes, db_workout.distance_km = workout_volumes(db_workout.scheme)
-    db_workout.estimated_load = calculate_load(db_workout.duration_minutes, db_workout.difficulty_level)
-    db.add(db_workout)
-    db.commit()
-    db.refresh(db_workout)
-    return db_workout
+        athlete_id = workout.athlete_id
+    return create_workout_service(db, workout.model_dump(), athlete_id)
 
 @router.post("/manual", response_model=WorkoutResponse, status_code=status.HTTP_201_CREATED)
 def create_manual_workout(workout: WorkoutManualCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -128,8 +109,6 @@ def create_manual_workout(workout: WorkoutManualCreate, db: Session = Depends(ge
     db.refresh(db_workout)
     return db_workout
 
-from ..models.plan import Plan
-
 @router.get("", response_model=List[WorkoutResponse])
 def read_workouts(skip: int = Query(0, ge=0), limit: int = Query(100, ge=1, le=500), athlete_id: Optional[int] = None,
                   include_archived: bool = False, date_from: Optional[datetime] = None,
@@ -145,22 +124,7 @@ def read_workouts(skip: int = Query(0, ge=0), limit: int = Query(100, ge=1, le=5
 
         target_athlete_id = athlete_id
         
-    if date_from and date_to and date_from > date_to:
-        raise HTTPException(status_code=422, detail="Invalid date range")
-    query = db.query(Workout).join(Plan, Workout.plan_id == Plan.id, isouter=True).filter(
-        Workout.athlete_id == target_athlete_id)
-    if not include_archived:
-        query = query.filter(or_(
-            Plan.id == None,
-            Plan.is_archived == False,
-            Workout.is_validated == True,
-            (Plan.is_archived == True) & (Workout.date < func.now())
-        ))
-    if date_from:
-        query = query.filter(Workout.date >= date_from)
-    if date_to:
-        query = query.filter(Workout.date < date_to)
-    return query.order_by(Workout.date.asc(), Workout.id.asc()).offset(skip).limit(limit).all()
+    return list_workouts(db, target_athlete_id, skip, limit, include_archived, date_from, date_to)
 
 @router.get("/{workout_id}", response_model=WorkoutResponse)
 def read_workout(workout_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -204,21 +168,6 @@ def update_workout(workout_id: int, workout: WorkoutUpdate, db: Session = Depend
     
     update_data = workout.model_dump(exclude_unset=True)
 
-    # Les anciennes séances manuelles et courses stockaient la distance en km.
-    old_scheme = db_workout.scheme or []
-    if (len(old_scheme) == 1 and isinstance(old_scheme[0], dict)
-            and len(old_scheme[0].get("intervals", [])) == 1
-            and isinstance(old_scheme[0]["intervals"][0], dict)):
-        old_interval = old_scheme[0]["intervals"][0]
-        legacy_distance = db_workout.distance_km
-        if old_interval.get("type") == "Course" and db_workout.plan:
-            legacy_distance = db_workout.plan.race_distance
-        if (old_interval.get("type") in ("Course à pied", "Course")
-                and legacy_distance and old_interval.get("distance") == legacy_distance):
-            scheme = deepcopy(update_data.get("scheme", old_scheme))
-            if scheme == old_scheme:
-                scheme[0]["intervals"][0]["distance"] *= 1000
-                update_data["scheme"] = scheme
     
     # Si athlete_id est mis à jour, vérifier qu'il s'agit d'un athlète valide (si coach)
     if "athlete_id" in update_data and current_user.role == "coach":
@@ -231,18 +180,7 @@ def update_workout(workout_id: int, workout: WorkoutUpdate, db: Session = Depend
         # Un athlète ne peut pas changer son propre athlete_id pour celui d'un autre
         update_data.pop("athlete_id")
 
-    for key, value in update_data.items():
-        setattr(db_workout, key, value)
-    
-    if db_workout.scheme and any(key in update_data for key in ("scheme", "duration_minutes", "distance_km")):
-        db_workout.duration_minutes, db_workout.distance_km = workout_volumes(db_workout.scheme)
-
-    if any(key in update_data for key in ("scheme", "duration_minutes", "distance_km", "difficulty_level")):
-        db_workout.estimated_load = calculate_load(db_workout.duration_minutes, db_workout.difficulty_level)
-        
-    db.commit()
-    db.refresh(db_workout)
-    return db_workout
+    return update_workout_service(db, db_workout, update_data)
 
 @router.post("/{workout_id}/validate", response_model=WorkoutResponse)
 def validate_workout(workout_id: int, validation: WorkoutValidation, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):

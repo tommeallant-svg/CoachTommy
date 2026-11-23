@@ -28,6 +28,11 @@ export default function ProfilePage() {
   const [stravaBusy, setStravaBusy] = useState(false);
   const [showGarmin, setShowGarmin] = useState(false);
   const [showStats, setShowStats] = useState(false);
+  const [aiActive, setAiActive] = useState<boolean | null>(null);
+  const [aiError, setAiError] = useState('');
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiKey, setAiKey] = useState('');
+  const [aiCopied, setAiCopied] = useState(false);
 
   const loadUser = async () => {
     try {
@@ -72,6 +77,53 @@ export default function ProfilePage() {
     void loadStrava();
   }, [router]);
 
+  const loadAiAccess = async () => {
+    setAiError('');
+    try {
+      const data = await readResponse(await fetchWithAuth('/api/ai-access', { cache: 'no-store' }), 'Impossible de charger l’état de l’accès IA.');
+      if (typeof data.active !== 'boolean') throw new Error('Réponse invalide pour l’accès IA.');
+      setAiActive(data.active);
+    } catch (error) {
+      setAiActive(null);
+      setAiError(error instanceof Error ? error.message : 'Impossible de charger l’état de l’accès IA.');
+    }
+  };
+
+  useEffect(() => {
+    if (user?.role === 'athlete') void loadAiAccess();
+  }, [user?.id, user?.role]);
+
+  const changeAiAccess = async (revoke: boolean) => {
+    if (revoke && !window.confirm('Révoquer la clé IA ? Les applications qui l’utilisent perdront immédiatement leur accès.')) return;
+    if (!revoke && aiActive && !window.confirm('Renouveler la clé IA ? L’ancienne clé cessera immédiatement de fonctionner.')) return;
+    setAiBusy(true);
+    setAiError('');
+    setAiKey('');
+    setAiCopied(false);
+    try {
+      const response = await fetchWithAuth('/api/ai-access', { method: revoke ? 'DELETE' : 'POST', cache: 'no-store' });
+      const data = await readResponse(response, revoke ? 'Impossible de révoquer la clé IA.' : 'Impossible de générer la clé IA.');
+      if (!revoke && (typeof data.key !== 'string' || !data.key)) throw new Error('La clé IA n’a pas été reçue. Vérifiez son état et générez-en une nouvelle si nécessaire.');
+      setAiActive(!revoke);
+      if (!revoke) setAiKey(data.key);
+    } catch (error) {
+      setAiActive(null);
+      setAiError(error instanceof Error ? error.message : 'Une erreur est survenue pour l’accès IA.');
+    } finally {
+      setAiBusy(false);
+    }
+  };
+
+  const copyAiKey = async () => {
+    try {
+      await navigator.clipboard.writeText(aiKey);
+      setAiCopied(true);
+      setAiError('');
+    } catch {
+      setAiError('Copie impossible. Sélectionnez et copiez la clé manuellement.');
+    }
+  };
+
   const changeStrava = async () => {
     setStravaBusy(true);
     setStravaError('');
@@ -110,6 +162,28 @@ export default function ProfilePage() {
             <button className={buttonClass} onClick={() => setShowStats(true)}>Modifier mes statistiques</button>
           </> : !userError && <p>Chargement du profil…</p>}
         </section>
+
+        {user?.role === 'athlete' && <section className="space-y-4 rounded-3xl bg-white p-6 shadow-sm" aria-labelledby="ai-title">
+          <h2 id="ai-title" className="text-xl font-black">Accès IA</h2>
+          <p>Cette clé permet à une application IA de consulter et modifier vos plans et séances, et de supprimer vos plans. La suppression d’un plan supprime aussi les séances qui lui sont liées.</p>
+          <p>Ne divulguez cette clé qu’à une application de confiance : toute personne qui la possède peut accéder à vos données et agir en votre nom.</p>
+          <p aria-live="polite">{aiActive === null ? (aiError ? 'État indisponible.' : 'Chargement de l’état…') : aiActive ? 'Clé active' : 'Aucune clé active'}</p>
+          {aiError && <p role="alert" className="text-red-700">{aiError} {aiActive === null && <button className="underline" disabled={aiBusy} onClick={loadAiAccess}>Réessayer</button>}</p>}
+          {aiActive !== null && <div className="flex flex-col gap-3 sm:flex-row">
+            <button className={buttonClass} disabled={aiBusy} onClick={() => changeAiAccess(false)}>{aiBusy ? 'Veuillez patienter…' : aiActive ? 'Renouveler la clé' : 'Générer une clé'}</button>
+            {aiActive && <button className={buttonClass} disabled={aiBusy} onClick={() => changeAiAccess(true)}>Révoquer la clé</button>}
+          </div>}
+          {aiKey && <div className="space-y-3 rounded-2xl bg-brand-surface p-4">
+            <p>Cette clé ne sera affichée qu’une seule fois. Copiez-la maintenant et conservez-la en lieu sûr.</p>
+            <label htmlFor="ai-key" className="font-bold">Votre clé API IA</label>
+            <textarea id="ai-key" readOnly value={aiKey} rows={3} className="w-full rounded-xl border border-gray-400 p-3 break-all" />
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <button className={buttonClass} onClick={copyAiKey}>Copier la clé</button>
+              <button className={buttonClass} onClick={() => { setAiKey(''); setAiCopied(false); }}>Masquer la clé</button>
+            </div>
+            <p role="status">{aiCopied ? 'Clé copiée.' : ''}</p>
+          </div>}
+        </section>}
 
         <section className="space-y-4 rounded-3xl bg-white p-6 shadow-sm" aria-labelledby="garmin-title">
           <h2 id="garmin-title" className="flex items-center gap-2 text-xl font-black"><Watch className="h-5 w-5" /> Garmin</h2>
