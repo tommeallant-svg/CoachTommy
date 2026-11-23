@@ -4,6 +4,7 @@
 #   - route GET /api/workouts/{workout_id}/garmin -> téléchargement du fichier .fit
 
 import re
+from copy import deepcopy
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import or_, func
@@ -19,6 +20,7 @@ from ..schemas.workout import WorkoutCreate, WorkoutResponse, WorkoutUpdate, Wor
 from ..auth import get_current_user
 from ..services.garmin_export import generate_workout_fit
 from ..services.garmin_mapper import GarminMapper
+from ..services.workout_volumes import calculate_volumes
 from garminconnect import (
     GarminConnectAuthenticationError,
     GarminConnectTooManyRequestsError,
@@ -37,6 +39,12 @@ def format_pace(duration_min, distance_km):
     seconds = int((pace_decimal - minutes) * 60)
     return f"{minutes}:{seconds:02d}"
 
+def workout_volumes(scheme):
+    try:
+        return calculate_volumes(scheme)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+
 @router.post("", response_model=WorkoutResponse, status_code=status.HTTP_201_CREATED)
 def create_workout(workout: WorkoutCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     db_workout = Workout(**workout.model_dump())
@@ -51,6 +59,8 @@ def create_workout(workout: WorkoutCreate, db: Session = Depends(get_db), curren
     else:
         db_workout.athlete_id = current_user.id
         
+    if db_workout.scheme:
+        db_workout.duration_minutes, db_workout.distance_km = workout_volumes(db_workout.scheme)
     db_workout.estimated_load = calculate_load(db_workout.duration_minutes, db_workout.difficulty_level)
     db.add(db_workout)
     db.commit()
@@ -99,7 +109,7 @@ def create_manual_workout(workout: WorkoutManualCreate, db: Session = Depends(ge
             "intervals": [{
                 "type": "Course à pied",
                 "duration": workout.duration_minutes,
-                "distance": workout.distance_km,
+                "distance": workout.distance_km * 1000,
                 "pace_min": pace,
                 "pace_max": pace
             }]
@@ -182,6 +192,22 @@ def update_workout(workout_id: int, workout: WorkoutUpdate, db: Session = Depend
         raise HTTPException(status_code=404, detail="Workout not found")
     
     update_data = workout.model_dump(exclude_unset=True)
+
+    # Les anciennes séances manuelles et courses stockaient la distance en km.
+    old_scheme = db_workout.scheme or []
+    if (len(old_scheme) == 1 and isinstance(old_scheme[0], dict)
+            and len(old_scheme[0].get("intervals", [])) == 1
+            and isinstance(old_scheme[0]["intervals"][0], dict)):
+        old_interval = old_scheme[0]["intervals"][0]
+        legacy_distance = db_workout.distance_km
+        if old_interval.get("type") == "Course" and db_workout.plan:
+            legacy_distance = db_workout.plan.race_distance
+        if (old_interval.get("type") in ("Course à pied", "Course")
+                and legacy_distance and old_interval.get("distance") == legacy_distance):
+            scheme = deepcopy(update_data.get("scheme", old_scheme))
+            if scheme == old_scheme:
+                scheme[0]["intervals"][0]["distance"] *= 1000
+                update_data["scheme"] = scheme
     
     # Si athlete_id est mis à jour, vérifier qu'il s'agit d'un athlète valide (si coach)
     if "athlete_id" in update_data and current_user.role == "coach":
@@ -197,7 +223,10 @@ def update_workout(workout_id: int, workout: WorkoutUpdate, db: Session = Depend
     for key, value in update_data.items():
         setattr(db_workout, key, value)
     
-    if "duration_minutes" in update_data or "difficulty_level" in update_data:
+    if db_workout.scheme and any(key in update_data for key in ("scheme", "duration_minutes", "distance_km")):
+        db_workout.duration_minutes, db_workout.distance_km = workout_volumes(db_workout.scheme)
+
+    if any(key in update_data for key in ("scheme", "duration_minutes", "distance_km", "difficulty_level")):
         db_workout.estimated_load = calculate_load(db_workout.duration_minutes, db_workout.difficulty_level)
         
     db.commit()

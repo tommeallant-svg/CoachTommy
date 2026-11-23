@@ -72,36 +72,26 @@ function NewManualWorkoutPageContent() {
   }, []);
 
   useEffect(() => {
-    if (formData.athlete_id) {
-      fetchAthleteStats(formData.athlete_id);
-    } else {
-      setAthleteVma(null);
-      setAthleteFtp(null);
-    }
-  }, [formData.athlete_id, athletes]); // Add athletes to dependencies to get stats once loaded
-
-  const fetchAthleteStats = async (athleteId: number) => {
-    if (user?.role === 'coach' && athletes.length > 0) {
-      const athlete = athletes.find(a => a.id === athleteId);
+    let active = true;
+    setAthleteVma(null);
+    setAthleteFtp(null);
+    if (!user) return () => { active = false; };
+    if (user.role === 'coach' && formData.athlete_id && formData.athlete_id !== user.id) {
+      const athlete = athletes.find(a => a.id === formData.athlete_id);
       if (athlete) {
         setAthleteVma(athlete.vma);
         setAthleteFtp(athlete.ftp);
-        return;
       }
+    } else {
+      fetchWithAuth('/api/auth/me').then(res => res.ok ? res.json() : null).then(data => {
+        if (active && data) {
+          setAthleteVma(data.vma);
+          setAthleteFtp(data.ftp);
+        }
+      }).catch(err => console.error('Erreur lors de la récupération des statistiques:', err));
     }
-    
-    // Fallback or for athlete himself
-    try {
-      const res = await fetchWithAuth(`/api/auth/me`);
-      if (res.ok) {
-        const data = await res.json();
-        setAthleteVma(data.vma);
-        setAthleteFtp(data.ftp);
-      }
-    } catch (err) {
-      console.error('Erreur lors de la récupération des statistiques:', err);
-    }
-  };
+    return () => { active = false; };
+  }, [formData.athlete_id, athletes, user]);
 
   const fetchAthletes = async () => {
     try {
@@ -147,6 +137,10 @@ function NewManualWorkoutPageContent() {
   const handleSelectFromCatalog = async (catalogWorkout: any) => {
     const scheme = catalogWorkout.scheme || [];
     const isCycling = catalogWorkout.sport === 'cycling';
+    if ((isCycling && !athleteFtp) || (!isCycling && !athleteVma)) {
+      alert("Les statistiques de l'athlète sont indisponibles. Renseignez sa VMA ou sa FTP avant de sélectionner une séance.");
+      return;
+    }
     let totalDuration = 0;
     
     const processedScheme = scheme.map((block: any) => {
@@ -267,7 +261,7 @@ function NewManualWorkoutPageContent() {
                 <select
                   className="w-full px-6 py-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-black focus:bg-white outline-none transition-all font-bold appearance-none cursor-pointer"
                   value={formData.athlete_id || ''}
-                  onChange={e => setFormData({...formData, athlete_id: e.target.value ? parseInt(e.target.value) : null})}
+                  onChange={e => setFormData({...formData, athlete_id: e.target.value ? parseInt(e.target.value) : null, scheme: []})}
                   required
                 >
                   <option value="">Choisir un athlète...</option>
@@ -431,7 +425,7 @@ function NewManualWorkoutPageContent() {
                 <div>
                   <h3 className="text-xl font-black uppercase tracking-tight">Catalogue</h3>
                   {athleteVma && (
-                    <p className="text-sm text-gray-500 font-medium mt-1">VMA de l'athlète : <span className="font-black text-black">{formatMinutesToMMSS(athleteVma)}/km</span></p>
+                    <p className="text-sm text-gray-500 font-medium mt-1">VMA de l'athlète : <span className="font-black text-black">{athleteVma} km/h</span></p>
                   )}
                 </div>
               </div>

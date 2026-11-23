@@ -826,7 +826,7 @@ class PlanGenerator:
             "intervals": [{
                 "type": "Course",
                 "duration": race["duration"],
-                "distance": race["distance"],
+                "distance": race["distance"] * 1000,
                 "pace_min": race["pace"],
                 "pace_max": race["pace"],
             }],

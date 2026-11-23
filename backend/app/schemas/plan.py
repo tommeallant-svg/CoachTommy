@@ -1,5 +1,5 @@
 from typing import Optional, List, Dict, Union
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
 
 class PlanBase(BaseModel):
@@ -11,7 +11,7 @@ class PlanBase(BaseModel):
     sessions_per_week: int
     goal_type: str
     training_days: Union[List[int], Dict[int, str]]
-    estimated_vma: float
+    estimated_vma: float = Field(..., gt=0)
 
     @field_validator('start_date')
     @classmethod

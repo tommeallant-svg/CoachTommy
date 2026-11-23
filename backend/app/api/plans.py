@@ -9,6 +9,7 @@ from ..schemas.plan import PlanCreate, PlanResponse, PlanArchive
 
 from ..models.catalog import CatalogWorkout
 from ..services.plan_generator import PlanGenerator
+from ..services.workout_volumes import calculate_volumes
 from ..models.workout import Workout
 
 router = APIRouter(prefix="/plans", tags=["plans"])
@@ -32,6 +33,8 @@ def get_plan(plan_id: int, db: Session = Depends(get_db), current_user: User = D
 
 @router.post("", response_model=PlanResponse)
 def create_plan(plan_in: PlanCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if current_user.role == "coach" and plan_in.athlete_id is None:
+        raise HTTPException(status_code=422, detail="Le coach doit sélectionner le destinataire du plan.")
     target_athlete_id = plan_in.athlete_id or current_user.id
     check_athlete_access(current_user, target_athlete_id, db)
     
@@ -57,8 +60,13 @@ def create_plan(plan_in: PlanCreate, db: Session = Depends(get_db), current_user
         
         for workout in workouts:
             workout.plan_id = db_plan.id
+            if workout.scheme:
+                workout.duration_minutes, workout.distance_km = calculate_volumes(workout.scheme)
+                workout.estimated_load = workout.duration_minutes * (1 + workout.difficulty_level / 5)
             db.add(workout)
-        
+
+        athlete = db.query(User).filter(User.id == target_athlete_id).one()
+        athlete.vma = 60 / plan_in.estimated_vma
         db.commit()
         db.refresh(db_plan)
         return db_plan
