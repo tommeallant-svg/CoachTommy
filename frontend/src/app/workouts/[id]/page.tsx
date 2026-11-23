@@ -77,6 +77,7 @@ export default function WorkoutDetailPage() {
   const [loadingCatalog, setLoadingCatalog] = useState(false);
   const [athleteVma, setAthleteVma] = useState<number | null>(null);
   const [athleteFtp, setAthleteFtp] = useState<number | null>(null);
+  const [catalogAthleteId, setCatalogAthleteId] = useState<number | null>(null);
   const [showGarminAuthModal, setShowGarminAuthModal] = useState(false);
   const [garminConnected, setGarminConnected] = useState(false);
   const [garminEmail, setGarminEmail] = useState<string | null>(null);
@@ -105,6 +106,28 @@ export default function WorkoutDetailPage() {
       fetchAthletes();
     }
   }, [id]);
+
+  useEffect(() => {
+    let active = true;
+    setAthleteVma(null);
+    setAthleteFtp(null);
+    if (!user || !editFormData.athlete_id) return () => { active = false; };
+    if (user.role === 'coach' && editFormData.athlete_id !== user.id) {
+      const athlete = athletes.find(a => a.id === editFormData.athlete_id);
+      if (athlete) {
+        setAthleteVma(athlete.vma);
+        setAthleteFtp(athlete.ftp);
+      }
+    } else {
+      fetchWithAuth('/api/auth/me').then(res => res.ok ? res.json() : null).then(data => {
+        if (active && data) {
+          setAthleteVma(data.vma);
+          setAthleteFtp(data.ftp);
+        }
+      }).catch(err => console.error('Erreur lors de la récupération des statistiques:', err));
+    }
+    return () => { active = false; };
+  }, [editFormData.athlete_id, athletes, user]);
 
   const fetchAthletes = async () => {
     try {
@@ -221,36 +244,6 @@ export default function WorkoutDetailPage() {
         scheme: data.scheme || [],
         athlete_id: data.athlete_id
       });
-      
-      // Récupérer les stats de l'athlète
-      if (data.athlete_id) {
-        const authUser = getAuthUser();
-        // Si c'est un coach, il faudrait un endpoint pour les stats de l'athlète
-        // Mais en fait on a déjà l'athleteId, et si on est coach on a accès à /api/coach/athletes
-        
-        // Pour faire simple, on va essayer de récupérer via le plan si dispo, 
-        // ou via un nouvel endpoint si on veut être propre.
-        // Vu que j'ai mis à jour AthleteSummary dans /api/coach/athletes, on peut l'utiliser.
-        if (authUser?.role === 'coach') {
-          const athletesRes = await fetchWithAuth('/api/coach/athletes');
-          if (athletesRes.ok) {
-            const athletesData = await athletesRes.json();
-            const currentAthlete = athletesData.find((a: any) => a.id === data.athlete_id);
-            if (currentAthlete) {
-              setAthleteVma(currentAthlete.vma);
-              setAthleteFtp(currentAthlete.ftp);
-            }
-          }
-        } else {
-          // C'est l'athlète lui-même
-          const meRes = await fetchWithAuth('/api/auth/me');
-          if (meRes.ok) {
-            const meData = await meRes.json();
-            setAthleteVma(meData.vma);
-            setAthleteFtp(meData.ftp);
-          }
-        }
-      }
     } catch (error) {
       console.error('Error:', error);
     } finally {
@@ -277,6 +270,10 @@ export default function WorkoutDetailPage() {
     // Convertir le scheme du catalogue au format workout avec les stats de l'athlète
     const scheme = catalogWorkout.scheme || [];
     const isCycling = catalogWorkout.sport === 'cycling';
+    if ((isCycling && (!athleteFtp || athleteFtp <= 0)) || (!isCycling && (!athleteVma || athleteVma <= 0))) {
+      alert("Les statistiques de l'athlète sont indisponibles. Renseignez sa VMA ou sa FTP avant de sélectionner une séance.");
+      return;
+    }
     
     // Calculer la durée totale estimée et convertir les % en valeurs réelles
     let totalDuration = 0;
@@ -323,11 +320,16 @@ export default function WorkoutDetailPage() {
       description: catalogWorkout.description || '',
       scheme: processedScheme
     });
+    setCatalogAthleteId(editFormData.athlete_id);
     setShowCatalogModal(false);
   };
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (catalogAthleteId !== null && catalogAthleteId !== editFormData.athlete_id) {
+      alert("Sélectionnez à nouveau la séance du catalogue pour utiliser les statistiques du nouvel athlète.");
+      return;
+    }
     setIsValidating(true);
     try {
       const response = await fetchWithAuth(`/api/workouts/${id}`, {
@@ -451,7 +453,11 @@ export default function WorkoutDetailPage() {
                   <select
                     className="w-full px-6 py-4 rounded-2xl bg-brand-surface border-2 border-transparent focus:border-brand-primary focus:bg-white outline-none transition-all font-bold appearance-none cursor-pointer text-brand-dark"
                     value={editFormData.athlete_id || ''}
-                    onChange={e => setEditFormData({...editFormData, athlete_id: e.target.value ? parseInt(e.target.value) : null})}
+                    onChange={e => {
+                      setAthleteVma(null);
+                      setAthleteFtp(null);
+                      setEditFormData({...editFormData, athlete_id: e.target.value ? parseInt(e.target.value) : null});
+                    }}
                     required
                   >
                     <option value="">Choisir un athlète...</option>
@@ -862,7 +868,7 @@ export default function WorkoutDetailPage() {
                 <div>
                   <h3 className="text-xl font-black text-brand-dark uppercase tracking-tight">Sélectionner une séance du catalogue</h3>
                   {athleteVma && (
-                    <p className="text-sm text-brand-secondary font-medium mt-1">VMA de l'athlète : <span className="font-black text-brand-dark">{formatMinutesToMMSS(athleteVma)}/km</span></p>
+                    <p className="text-sm text-brand-secondary font-medium mt-1">VMA de l'athlète : <span className="font-black text-brand-dark">{athleteVma} km/h</span></p>
                   )}
                 </div>
               </div>
