@@ -9,6 +9,7 @@ from app.models.user import User
 from app.models.plan import Plan
 from app.models.catalog import CatalogWorkout
 from app.auth import get_password_hash
+from app.strava_migration import migrate_strava
 
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -16,13 +17,14 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 def seed():
     # Create tables
     Base.metadata.create_all(bind=engine)
+    migrate_strava(engine)
     
     db = SessionLocal()
-    # Clean existing data
-    db.query(Workout).delete()
-    db.query(Plan).delete()
-    db.query(User).delete()
-    db.query(CatalogWorkout).delete()
+    # Never erase existing data when initializing a database.
+    if any(db.query(model).first() for model in (Workout, Plan, User, CatalogWorkout)):
+        db.close()
+        print("Database already contains data; seed skipped.")
+        return
 
     # Create users
     coach = User(

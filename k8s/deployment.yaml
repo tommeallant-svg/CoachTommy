@@ -20,6 +20,11 @@ spec:
         env:
         - name: DATABASE_URL
           value: "postgresql://user:password@postgres-service:5432/application_db"
+        - name: JWT_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: application-entrainement-secrets
+              key: jwt-secret-key
       - name: frontend
         image: application-entrainement-frontend:latest
         ports:

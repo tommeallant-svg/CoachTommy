@@ -23,6 +23,11 @@ services:
     restart: always
     environment:
       DATABASE_URL: postgresql://user:password@db:5432/application_db
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-}
+      STRAVA_CLIENT_ID: ${STRAVA_CLIENT_ID:-}
+      STRAVA_CLIENT_SECRET: ${STRAVA_CLIENT_SECRET:-}
+      STRAVA_REDIRECT_URI: ${STRAVA_REDIRECT_URI:-}
+      STRAVA_ENCRYPTION_KEY: ${STRAVA_ENCRYPTION_KEY:-}
     ports:
       - "8000:8000"
     depends_on:
