@@ -109,7 +109,7 @@ function DraggableDayWorkout({ type, dayIdx }: { type: string, dayIdx: number })
   );
 }
 
-function DaySlot({ dayIdx, type }: { dayIdx: number, type: string | null }) {
+function DaySlot({ dayIdx, type, onMove }: { dayIdx: number, type: string | null, onMove: (dayIdx: number) => void }) {
   const {setNodeRef, isOver} = useDroppable({
     id: `day-${dayIdx}`,
     data: { dayIdx }
@@ -125,7 +125,12 @@ function DaySlot({ dayIdx, type }: { dayIdx: number, type: string | null }) {
     >
       <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-2">{DAYS[dayIdx].slice(0, 3)}</span>
       {type && (
-        <DraggableDayWorkout type={type} dayIdx={dayIdx} />
+        <>
+          <DraggableDayWorkout type={type} dayIdx={dayIdx} />
+          <button type="button" onClick={() => onMove(dayIdx)} className="mt-2 min-h-[44px] px-2 text-[10px] font-black uppercase text-blue-700 hover:text-blue-900" aria-label={`Déplacer la séance ${type} de ${DAYS[dayIdx]}`}>
+            Déplacer
+          </button>
+        </>
       )}
       {!type && <Plus className="w-4 h-4 text-gray-200" />}
     </div>
@@ -143,6 +148,7 @@ function NewPlanPageContent() {
   const [showPopup, setShowPopup] = useState(false);
   const [existingPlan, setExistingPlan] = useState<any>(null);
   const [cancellationComment, setCancellationComment] = useState('');
+  const [movingDay, setMovingDay] = useState<number | null>(null);
   
   const [formData, setFormData] = useState({
     race_name: '',
@@ -209,6 +215,7 @@ function NewPlanPageContent() {
   useEffect(() => {
     const defaults = DEFAULT_ASSIGNMENTS[formData.goal_type]?.[formData.sessions_per_week];
     if (defaults) {
+      setMovingDay(null);
       setFormData(prev => ({
         ...prev,
         training_days: { ...defaults }
@@ -232,30 +239,30 @@ function NewPlanPageContent() {
     }
   };
 
-  const handleDragEnd = (event: DragEndEvent) => {
-    const {active, over} = event;
-    
-    if (over) {
-      const fromDayIdx = active.data.current?.fromDayIdx;
-      const toDayIdx = over.data.current?.dayIdx;
-      const type = active.data.current?.type;
-      
-      if (fromDayIdx !== undefined && toDayIdx !== undefined && fromDayIdx !== toDayIdx) {
-        setFormData(prev => {
-          const newDays = {...prev.training_days};
-          const targetType = newDays[toDayIdx];
-          
-          // Swap if there is already a workout at target, otherwise just move
-          newDays[toDayIdx] = type;
-          if (targetType) {
-            newDays[fromDayIdx] = targetType;
-          } else {
-            delete newDays[fromDayIdx];
-          }
-          
-          return {...prev, training_days: newDays};
-        });
+  const moveWorkout = (fromDayIdx: number, toDayIdx: number) => {
+    if (fromDayIdx === toDayIdx) return;
+    setFormData(prev => {
+      const newDays = {...prev.training_days};
+      const type = newDays[fromDayIdx];
+      if (!type) return prev;
+      const targetType = newDays[toDayIdx];
+
+      newDays[toDayIdx] = type;
+      if (targetType) {
+        newDays[fromDayIdx] = targetType;
+      } else {
+        delete newDays[fromDayIdx];
       }
+      return {...prev, training_days: newDays};
+    });
+    setMovingDay(null);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const fromDayIdx = event.active.data.current?.fromDayIdx;
+    const toDayIdx = event.over?.data.current?.dayIdx;
+    if (fromDayIdx !== undefined && toDayIdx !== undefined) {
+      moveWorkout(fromDayIdx, toDayIdx);
     }
   };
 
@@ -529,20 +536,43 @@ function NewPlanPageContent() {
               <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
                 <div className="space-y-6">
                   {/* Weekly Calendar Drop Zones */}
-                  <div className="grid grid-cols-4 md:grid-cols-7 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-3">
                     {[0, 1, 2, 3, 4, 5, 6].map((idx) => (
                       <DaySlot 
                         key={idx} 
                         dayIdx={idx} 
                         type={formData.training_days[idx] || null} 
+                        onMove={setMovingDay}
                       />
                     ))}
                   </div>
                 </div>
               </DndContext>
+
+              {movingDay !== null && (
+                <div className="space-y-3 rounded-2xl bg-gray-50 p-4">
+                  <label htmlFor="move-workout-day" className="block text-sm font-bold text-black">
+                    Déplacer {formData.training_days[movingDay]} de {DAYS[movingDay]} vers :
+                  </label>
+                  <select
+                    id="move-workout-day"
+                    value=""
+                    onChange={e => {
+                      if (e.target.value !== '') moveWorkout(movingDay, Number(e.target.value));
+                    }}
+                    className="w-full min-h-[44px] rounded-xl border border-gray-300 bg-white px-3 font-bold text-black"
+                  >
+                    <option value="">Choisir un jour...</option>
+                    {DAYS.map((day, idx) => idx !== movingDay && (
+                      <option key={day} value={idx}>{day}{formData.training_days[idx] ? ` — échange avec ${formData.training_days[idx]}` : ' — libre'}</option>
+                    ))}
+                  </select>
+                  <button type="button" onClick={() => setMovingDay(null)} className="min-h-[44px] px-3 text-sm font-bold text-gray-600">Annuler</button>
+                </div>
+              )}
               
               <p className="text-[10px] text-gray-400 italic font-medium">
-                Les types de séances sont fixés par votre objectif. Vous pouvez les déplacer d'un jour à l'autre par drag & drop.
+                Les types de séances sont fixés par votre objectif. Glissez une séance ou utilisez « Déplacer » pour choisir un jour. Si ce jour est occupé, les séances sont échangées.
               </p>
             </div>
             

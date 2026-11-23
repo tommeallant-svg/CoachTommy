@@ -156,6 +156,8 @@ function CalendarPageContent() {
   const [view, setView] = useState<'month' | 'week'>('month');
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null);
+  const [moveDate, setMoveDate] = useState('');
+  const [isMoving, setIsMoving] = useState(false);
   const [isSideMenuOpen, setIsSideMenuOpen] = useState(false);
   const [currentPlan, setCurrentPlan] = useState<any>(null);
   const [showGarminAuthModal, setShowGarminAuthModal] = useState(false);
@@ -333,25 +335,37 @@ function CalendarPageContent() {
 
   const handleWorkoutClick = (workout: Workout) => {
     setSelectedWorkout(workout);
+    setMoveDate(format(parseISO(workout.date), 'yyyy-MM-dd'));
     setIsSideMenuOpen(true);
   };
 
   const shiftWorkout = async (workout: Workout, newDate: Date) => {
+    if (isMoving || isSameDay(parseISO(workout.date), newDate)) return;
+    const originalDate = parseISO(workout.date);
+    const targetDate = new Date(newDate);
+    targetDate.setHours(originalDate.getHours(), originalDate.getMinutes(), originalDate.getSeconds(), originalDate.getMilliseconds());
+    setIsMoving(true);
     try {
       const response = await fetchWithAuth(`/api/workouts/${workout.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date: format(newDate, "yyyy-MM-dd'T'HH:mm:ss") }),
+        body: JSON.stringify({ date: format(targetDate, "yyyy-MM-dd'T'HH:mm:ss") }),
       });
       if (response.ok) {
         fetchWorkouts(athleteId);
         if (selectedWorkout?.id === workout.id) {
           const updated = await response.json();
           setSelectedWorkout(updated);
+          setMoveDate(format(parseISO(updated.date), 'yyyy-MM-dd'));
         }
+      } else {
+        alert('Erreur lors du déplacement de la séance');
       }
     } catch (error) {
       console.error('Failed to shift workout:', error);
+      alert('Erreur lors du déplacement de la séance');
+    } finally {
+      setIsMoving(false);
     }
   };
 
@@ -562,13 +576,6 @@ function CalendarPageContent() {
   const renderSideMenu = () => {
     if (!selectedWorkout) return null;
 
-    // Get current week days for shifting
-    const weekStart = startOfWeek(parseISO(selectedWorkout.date), { weekStartsOn: 1 });
-    const weekDays = eachDayOfInterval({
-      start: weekStart,
-      end: endOfWeek(weekStart, { weekStartsOn: 1 })
-    });
-
     return (
       <div className={`fixed inset-y-0 right-0 w-full md:w-[450px] bg-white shadow-[-20px_0_50px_rgba(0,0,0,0.1)] transform transition-transform duration-500 ease-in-out z-50 ${isSideMenuOpen ? 'translate-x-0' : 'translate-x-full'}`}>
         <div className="p-6 md:p-8 h-full flex flex-col">
@@ -590,6 +597,31 @@ function CalendarPageContent() {
               <h3 className="text-2xl md:text-4xl font-black text-brand-dark leading-none uppercase tracking-tighter">{selectedWorkout.name}</h3>
               <p className="text-brand-secondary font-bold mt-4 uppercase text-xs tracking-widest">{format(parseISO(selectedWorkout.date), 'EEEE d MMMM yyyy', { locale: fr })}</p>
             </div>
+
+            <form onSubmit={(event) => {
+              event.preventDefault();
+              if (moveDate) shiftWorkout(selectedWorkout, parseISO(moveDate));
+            }} className="space-y-3">
+              <label htmlFor="move-workout-date" className="block font-black text-xs text-brand-dark uppercase tracking-widest">
+                Déplacer la séance
+              </label>
+              <input
+                id="move-workout-date"
+                type="date"
+                required
+                value={moveDate}
+                onChange={(event) => setMoveDate(event.target.value)}
+                className="w-full p-3 rounded-2xl border border-brand-light text-brand-dark"
+              />
+              <button
+                type="submit"
+                disabled={isMoving || !moveDate || moveDate === format(parseISO(selectedWorkout.date), 'yyyy-MM-dd')}
+                className="w-full flex items-center justify-center gap-2 bg-brand-surface text-brand-primary px-4 py-3 rounded-2xl font-black uppercase text-xs tracking-widest border border-brand-light disabled:opacity-50"
+              >
+                <ArrowRightLeft className="w-4 h-4" />
+                {isMoving ? 'Déplacement...' : 'Déplacer'}
+              </button>
+            </form>
 
             <div className="grid grid-cols-3 gap-3 md:gap-4">
               <div className="bg-brand-surface border border-brand-light p-3 md:p-5 rounded-2xl md:rounded-3xl">

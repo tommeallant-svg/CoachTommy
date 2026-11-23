@@ -95,6 +95,21 @@ class WorkoutApiTests(unittest.TestCase):
         self.assertEqual(response.json()['duration_minutes'], 14)
         self.assertIsNone(response.json()['distance_km'])
 
+    def test_move_workout_date_and_errors(self):
+        response = self.client.post('/api/workouts/manual', json={
+            'workout_type': 'Libre', 'duration_minutes': 33, 'distance_km': 5,
+            'date': '2026-12-01T10:00:00', 'athlete_id': self.athlete.id})
+        self.assertEqual(response.status_code, 201, response.text)
+        workout = response.json()
+        url = '/api/workouts/' + str(workout['id'])
+        response = self.client.patch(url, json={'date': '2026-12-05T10:00:00'})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()['date'], '2026-12-05T10:00:00')
+        self.assertEqual(response.json()['athlete_id'], self.athlete.id)
+        self.assertEqual(response.json()['duration_minutes'], workout['duration_minutes'])
+        self.assertEqual(self.client.patch(url, json={'date': 'invalide'}).status_code, 422)
+        self.assertEqual(self.client.patch('/api/workouts/999999', json={'date': '2026-12-05T10:00:00'}).status_code, 404)
+
     def test_plan_generation_failure_does_not_change_vma(self):
         data = {'race_name': '10 km', 'race_date': '2027-02-01T00:00:00', 'race_distance': 10,
                 'start_date': '2026-12-07T00:00:00', 'sessions_per_week': 3,
