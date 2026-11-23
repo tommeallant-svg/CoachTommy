@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Activity } from 'lucide-react';
 import { setAuthToken } from '@/lib/api';
 
@@ -38,7 +39,7 @@ export default function LoginPage() {
         router.push('/');
       } else {
         const errData = await response.json();
-        setError(errData.detail || 'Identifiants incorrects');
+        setError(response.status === 401 ? 'Adresse email ou mot de passe incorrect.' : (typeof errData.detail === 'string' ? errData.detail : 'Connexion impossible.'));
       }
     } catch (err) {
       setError('Erreur de connexion au serveur');
@@ -65,15 +66,16 @@ export default function LoginPage() {
         
         <form className="mt-8 space-y-6" onSubmit={handleLogin}>
           {error && (
-            <div className="bg-rose-50 text-rose-600 p-4 rounded-2xl text-sm font-bold border border-rose-100">
+            <div role="alert" className="bg-rose-50 text-rose-600 p-4 rounded-2xl text-sm font-bold border border-rose-100">
               {error}
             </div>
           )}
           
           <div className="space-y-4">
             <div>
-              <label className="text-xs font-black uppercase tracking-widest text-brand-secondary mb-2 block ml-1">Email</label>
+              <label htmlFor="login-email" className="text-xs font-black uppercase tracking-widest text-brand-secondary mb-2 block ml-1">Email</label>
               <input
+                id="login-email"
                 type="email"
                 required
                 className="block w-full px-5 py-4 rounded-2xl bg-brand-surface border-2 border-transparent focus:border-brand-primary focus:bg-white outline-none transition-all font-bold text-brand-dark shadow-inner"
@@ -83,8 +85,9 @@ export default function LoginPage() {
               />
             </div>
             <div>
-              <label className="text-xs font-black uppercase tracking-widest text-brand-secondary mb-2 block ml-1">Mot de passe</label>
+              <label htmlFor="login-password" className="text-xs font-black uppercase tracking-widest text-brand-secondary mb-2 block ml-1">Mot de passe</label>
               <input
+                id="login-password"
                 type="password"
                 required
                 className="block w-full px-5 py-4 rounded-2xl bg-brand-surface border-2 border-transparent focus:border-brand-primary focus:bg-white outline-none transition-all font-bold text-brand-dark shadow-inner"
@@ -105,6 +108,7 @@ export default function LoginPage() {
             </button>
           </div>
         </form>
+        <p className="text-center text-sm text-brand-secondary">Pas encore de compte ? <Link href="/register" className="font-bold text-brand-primary underline">Créer un compte</Link></p>
       </div>
     </div>
   );
