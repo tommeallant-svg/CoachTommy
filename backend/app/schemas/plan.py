@@ -1,6 +1,6 @@
 from typing import Optional, List, Dict, Union
 from pydantic import BaseModel, Field, field_validator
-from datetime import datetime
+from datetime import date, datetime
 
 class PlanBase(BaseModel):
     race_name: str
@@ -34,3 +34,12 @@ class PlanResponse(PlanBase):
 
     class Config:
         from_attributes = True
+
+class PlanWeeklyStats(BaseModel):
+    week_start: date
+    week_end: date
+    workout_count: int = 0
+    validated_count: int = 0
+    duration_minutes: int = 0
+    distance_km: float = 0
+    estimated_load: float = 0

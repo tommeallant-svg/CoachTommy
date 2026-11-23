@@ -5,8 +5,9 @@
 
 import re
 from copy import deepcopy
+from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import or_, func
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -45,6 +46,13 @@ def workout_volumes(scheme):
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
 
+def accessible_workouts(db, current_user):
+    query = db.query(Workout)
+    if current_user.role == "coach":
+        assigned = db.query(User.id).filter(User.coach_id == current_user.id)
+        return query.filter(or_(Workout.athlete_id == current_user.id, Workout.athlete_id.in_(assigned)))
+    return query.filter(Workout.athlete_id == current_user.id)
+
 @router.post("", response_model=WorkoutResponse, status_code=status.HTTP_201_CREATED)
 def create_workout(workout: WorkoutCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     db_workout = Workout(**workout.model_dump())
@@ -53,7 +61,7 @@ def create_workout(workout: WorkoutCreate, db: Session = Depends(get_db), curren
     if workout.athlete_id and current_user.role == "coach":
         # Vérifier que l'athlète existe et est soit un athlète, soit le coach lui-même
         athlete = db.query(User).filter(User.id == workout.athlete_id).first()
-        if not athlete or (athlete.role != "athlete" and athlete.id != current_user.id):
+        if not athlete or (athlete.id != current_user.id and (athlete.role != "athlete" or athlete.coach_id != current_user.id)):
             raise HTTPException(status_code=404, detail="Athlète non trouvé")
         db_workout.athlete_id = workout.athlete_id
     else:
@@ -79,7 +87,7 @@ def create_manual_workout(workout: WorkoutManualCreate, db: Session = Depends(ge
     if workout.athlete_id and current_user.role == "coach":
         # Vérifier que l'athlète existe et est soit un athlète, soit le coach lui-même
         athlete = db.query(User).filter(User.id == workout.athlete_id).first()
-        if not athlete or (athlete.role != "athlete" and athlete.id != current_user.id):
+        if not athlete or (athlete.id != current_user.id and (athlete.role != "athlete" or athlete.coach_id != current_user.id)):
             raise HTTPException(status_code=404, detail="Athlète non trouvé")
         athlete_id = workout.athlete_id
         # Si c'est un coach qui crée pour un athlète (différent de lui-même), la séance n'est pas validée par défaut
@@ -123,7 +131,9 @@ def create_manual_workout(workout: WorkoutManualCreate, db: Session = Depends(ge
 from ..models.plan import Plan
 
 @router.get("", response_model=List[WorkoutResponse])
-def read_workouts(skip: int = 0, limit: int = 100, athlete_id: Optional[int] = None, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def read_workouts(skip: int = Query(0, ge=0), limit: int = Query(100, ge=1, le=500), athlete_id: Optional[int] = None,
+                  include_archived: bool = False, date_from: Optional[datetime] = None,
+                  date_to: Optional[datetime] = None, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     target_athlete_id = current_user.id
     if athlete_id and athlete_id != current_user.id:
         if current_user.role != "coach":
@@ -135,21 +145,26 @@ def read_workouts(skip: int = 0, limit: int = 100, athlete_id: Optional[int] = N
 
         target_athlete_id = athlete_id
         
-    return db.query(Workout).join(Plan, Workout.plan_id == Plan.id, isouter=True).filter(
-        Workout.athlete_id == target_athlete_id,
-        or_(
+    if date_from and date_to and date_from > date_to:
+        raise HTTPException(status_code=422, detail="Invalid date range")
+    query = db.query(Workout).join(Plan, Workout.plan_id == Plan.id, isouter=True).filter(
+        Workout.athlete_id == target_athlete_id)
+    if not include_archived:
+        query = query.filter(or_(
             Plan.id == None,
             Plan.is_archived == False,
             Workout.is_validated == True,
             (Plan.is_archived == True) & (Workout.date < func.now())
-        )
-    ).order_by(Workout.date.asc()).offset(skip).limit(limit).all()
+        ))
+    if date_from:
+        query = query.filter(Workout.date >= date_from)
+    if date_to:
+        query = query.filter(Workout.date < date_to)
+    return query.order_by(Workout.date.asc(), Workout.id.asc()).offset(skip).limit(limit).all()
 
 @router.get("/{workout_id}", response_model=WorkoutResponse)
 def read_workout(workout_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    query = db.query(Workout).filter(Workout.id == workout_id)
-    if current_user.role != "coach":
-        query = query.filter(Workout.athlete_id == current_user.id)
+    query = accessible_workouts(db, current_user).filter(Workout.id == workout_id)
         
     db_workout = query.first()
     if db_workout is None:
@@ -161,9 +176,7 @@ def read_workout(workout_id: int, db: Session = Depends(get_db), current_user: U
 # ---------------------------------------------------------------------------
 @router.get("/{workout_id}/garmin")
 def export_workout_garmin(workout_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    query = db.query(Workout).filter(Workout.id == workout_id)
-    if current_user.role != "coach":
-        query = query.filter(Workout.athlete_id == current_user.id)
+    query = accessible_workouts(db, current_user).filter(Workout.id == workout_id)
 
     db_workout = query.first()
     if db_workout is None:
@@ -183,9 +196,7 @@ def export_workout_garmin(workout_id: int, db: Session = Depends(get_db), curren
 
 @router.patch("/{workout_id}", response_model=WorkoutResponse)
 def update_workout(workout_id: int, workout: WorkoutUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    query = db.query(Workout).filter(Workout.id == workout_id)
-    if current_user.role != "coach":
-        query = query.filter(Workout.athlete_id == current_user.id)
+    query = accessible_workouts(db, current_user).filter(Workout.id == workout_id)
         
     db_workout = query.first()
     if db_workout is None:
@@ -214,7 +225,7 @@ def update_workout(workout_id: int, workout: WorkoutUpdate, db: Session = Depend
         athlete_id = update_data["athlete_id"]
         if athlete_id:
             athlete = db.query(User).filter(User.id == athlete_id).first()
-            if not athlete or (athlete.role != "athlete" and athlete.id != current_user.id):
+            if not athlete or (athlete.id != current_user.id and athlete.coach_id != current_user.id):
                 raise HTTPException(status_code=404, detail="Athlète non trouvé")
     elif "athlete_id" in update_data:
         # Un athlète ne peut pas changer son propre athlete_id pour celui d'un autre
@@ -235,9 +246,7 @@ def update_workout(workout_id: int, workout: WorkoutUpdate, db: Session = Depend
 
 @router.post("/{workout_id}/validate", response_model=WorkoutResponse)
 def validate_workout(workout_id: int, validation: WorkoutValidation, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    query = db.query(Workout).filter(Workout.id == workout_id)
-    if current_user.role != "coach":
-        query = query.filter(Workout.athlete_id == current_user.id)
+    query = accessible_workouts(db, current_user).filter(Workout.id == workout_id)
         
     db_workout = query.first()
     if db_workout is None:
@@ -253,9 +262,7 @@ def validate_workout(workout_id: int, validation: WorkoutValidation, db: Session
 
 @router.delete("/{workout_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_workout(workout_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    query = db.query(Workout).filter(Workout.id == workout_id)
-    if current_user.role != "coach":
-        query = query.filter(Workout.athlete_id == current_user.id)
+    query = accessible_workouts(db, current_user).filter(Workout.id == workout_id)
         
     db_workout = query.first()
     if db_workout is None:
@@ -273,9 +280,7 @@ async def push_workout_to_garmin(workout_id: int, db: Session = Depends(get_db),
     Push a workout to the athlete's Garmin Connect account.
     Requires the athlete to be connected to Garmin (tokens stored in database).
     """
-    query = db.query(Workout).filter(Workout.id == workout_id)
-    if current_user.role != "coach":
-        query = query.filter(Workout.athlete_id == current_user.id)
+    query = accessible_workouts(db, current_user).filter(Workout.id == workout_id)
     
     db_workout = query.first()
     

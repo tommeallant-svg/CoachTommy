@@ -222,14 +222,21 @@ function CalendarPageContent() {
 
   const fetchWorkouts = async (id?: string | null) => {
     try {
-      const url = id ? `/api/workouts?athlete_id=${id}` : '/api/workouts';
-      const response = await fetchWithAuth(url);
-      if (response.ok) {
-        const data = await response.json();
-        setWorkouts(data);
+      const all: Workout[] = [];
+      const params = new URLSearchParams({ include_archived: 'true', limit: '500' });
+      if (id) params.set('athlete_id', id);
+      while (true) {
+        params.set('skip', String(all.length));
+        const response = await fetchWithAuth(`/api/workouts?${params}`);
+        if (!response.ok) throw new Error('Impossible de charger les séances');
+        const data: Workout[] = await response.json();
+        all.push(...data);
+        if (data.length < 500) break;
       }
+      setWorkouts(all);
     } catch (error) {
       console.error('Failed to fetch workouts:', error);
+      alert('Impossible de charger les séances. Veuillez réessayer.');
     }
   };
 
@@ -278,8 +285,8 @@ function CalendarPageContent() {
   const handleArchivePlan = async () => {
     if (!currentPlan) return;
     const msg = athleteId 
-      ? "Voulez-vous archiver le plan actuel de cet athlète ? Les séances passées validées resteront visibles, mais les séances futures seront masquées. L'athlète pourra alors commencer un nouveau plan."
-      : "Voulez-vous archiver votre plan actuel ? Vos séances passées validées resteront visibles, mais les séances futures seront masquées. Vous pourrez alors commencer un nouveau plan.";
+      ? "Voulez-vous archiver le plan actuel de cet athlète ? Ses séances seront conservées."
+      : "Voulez-vous archiver votre plan actuel ? Vos séances seront conservées.";
     
     if (!confirm(msg)) return;
     
@@ -387,17 +394,7 @@ function CalendarPageContent() {
       </div>
       
       <div className="flex flex-wrap items-center gap-3 md:gap-4">
-        {user?.role === 'coach' && (
-          <Link
-            href="/coach"
-            className="flex items-center gap-2 bg-brand-primary text-white px-4 md:px-6 py-3 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-brand-dark transition-all shadow-lg shadow-brand-primary/20"
-          >
-            <Users className="w-4 h-4" />
-            <span>Vue Entraîneur</span>
-          </Link>
-        )}
-
-        {currentPlan ? (
+        {athleteId && (currentPlan ? (
           <div className="flex items-center gap-3 md:gap-4">
             <div className="flex items-center gap-2 bg-emerald-50 text-emerald-700 px-4 md:px-6 py-3 rounded-2xl font-black uppercase text-xs tracking-widest border border-emerald-100">
               <CheckCircle2 className="w-4 h-4" />
@@ -428,7 +425,7 @@ function CalendarPageContent() {
             <Plus className="w-4 h-4" />
             <span>Créer un Plan</span>
           </Link>
-        )}
+        ))}
 
         <Link
           href={athleteId ? `/workouts/new?athleteId=${athleteId}` : "/workouts/new"}
@@ -439,38 +436,6 @@ function CalendarPageContent() {
           <span>Séance Manuelle</span>
         </Link>
 
-        <button
-          onClick={() => setShowGarminAuthModal(true)}
-          className={`flex items-center gap-2 px-4 md:px-6 py-3 rounded-2xl font-black uppercase text-xs tracking-widest transition-all shadow-sm border ${
-            garminStatus.is_connected 
-            ? 'bg-brand-surface text-brand-primary border-brand-light hover:bg-brand-light' 
-            : 'bg-slate-50 text-slate-500 border-slate-100 hover:bg-slate-100'
-          }`}
-          title="Réglages Garmin Connect"
-        >
-          <Watch className={`w-4 h-4 ${garminStatus.is_connected ? 'text-brand-primary' : ''}`} />
-          <span>Garmin</span>
-        </button>
-        <button
-          onClick={() => setShowStatsModal(true)}
-          className={`flex items-center gap-2 px-4 md:px-6 py-3 rounded-2xl font-black uppercase text-xs tracking-widest transition-all shadow-sm border ${
-            user?.vma || user?.ftp
-            ? 'bg-brand-surface text-brand-primary border-brand-light hover:bg-brand-light' 
-            : 'bg-slate-50 text-slate-500 border-slate-100 hover:bg-slate-100'
-          }`}
-          title="Statistiques de performance"
-        >
-          <Zap className={`w-4 h-4 ${user?.vma || user?.ftp ? 'text-brand-primary' : ''}`} />
-          <span>Profil</span>
-        </button>
-
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-2 bg-slate-50 text-slate-500 px-4 md:px-6 py-3 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-rose-50 hover:text-rose-600 transition-all border border-slate-100"
-        >
-          <LogOut className="w-4 h-4" />
-          <span>Déconnexion</span>
-        </button>
 
         <div className="flex items-center bg-brand-surface rounded-2xl p-1.5 border border-brand-light shadow-inner">
           <button 

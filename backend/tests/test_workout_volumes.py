@@ -1,5 +1,6 @@
 import unittest
 from unittest.mock import patch
+from datetime import datetime, timedelta
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -10,6 +11,7 @@ from app.database import Base, get_db
 from app.auth import get_current_user
 from app.main import app
 from app.models.user import User
+from app.models.workout import Workout
 
 
 class WorkoutApiTests(unittest.TestCase):
@@ -32,6 +34,43 @@ class WorkoutApiTests(unittest.TestCase):
         app.dependency_overrides.clear()
         self.db.close()
         self.engine.dispose()
+
+    def test_history_pagination_and_access(self):
+        start = datetime(2026, 1, 1)
+        self.db.add_all([Workout(name=f'Séance {i}', workout_type='Libre', duration_minutes=30,
+                                 difficulty_level=5, date=start + timedelta(days=i),
+                                 athlete_id=self.athlete.id) for i in range(120)])
+        self.db.commit()
+        params = {'athlete_id': self.athlete.id, 'include_archived': 'true', 'limit': 100}
+        first = self.client.get('/api/workouts', params=params)
+        second = self.client.get('/api/workouts', params={**params, 'skip': 100})
+        self.assertEqual(first.status_code, 200, first.text)
+        self.assertEqual(len(first.json()), 100)
+        self.assertEqual(len(second.json()), 20)
+        self.assertFalse({w['id'] for w in first.json()} & {w['id'] for w in second.json()})
+        filtered = self.client.get('/api/workouts', params={**params, 'date_from': '2026-01-02T00:00:00',
+                                                            'date_to': '2026-01-04T00:00:00'})
+        self.assertEqual(len(filtered.json()), 2)
+        self.assertEqual(self.client.get('/api/workouts', params={'skip': -1}).status_code, 422)
+        outsider = User(email='outsider@example.com', hashed_password='x', role='athlete')
+        self.db.add(outsider)
+        self.db.commit()
+        self.assertEqual(self.client.get('/api/workouts', params={'athlete_id': outsider.id}).status_code, 403)
+
+    def test_coach_cannot_access_unassigned_workout(self):
+        outsider = User(email='other@example.com', hashed_password='x', role='athlete')
+        self.db.add(outsider)
+        self.db.flush()
+        workout = Workout(name='Privé', workout_type='Libre', duration_minutes=30,
+                          difficulty_level=5, date=datetime(2026, 1, 1), athlete_id=outsider.id)
+        self.db.add(workout)
+        self.db.commit()
+        url = f'/api/workouts/{workout.id}'
+        self.assertEqual(self.client.get(url).status_code, 404)
+        self.assertEqual(self.client.patch(url, json={'name': 'modifié'}).status_code, 404)
+        self.assertEqual(self.client.delete(url).status_code, 404)
+        self.assertEqual(self.client.get(url + '/garmin').status_code, 404)
+        self.assertEqual(self.client.post(url + '/validate', json={'perceived_difficulty': 5}).status_code, 404)
 
     def test_create_and_update_volumes(self):
         data = {'name': 'Test', 'workout_type': 'Fractionné', 'duration_minutes': 99,

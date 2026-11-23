@@ -20,6 +20,9 @@ export default function CoachPage() {
   const router = useRouter();
   const [athletes, setAthletes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [email, setEmail] = useState('');
+  const [message, setMessage] = useState('');
+  const [adding, setAdding] = useState(false);
 
   useEffect(() => {
     const user = getAuthUser();
@@ -36,11 +39,35 @@ export default function CoachPage() {
       if (res.ok) {
         const data = await res.json();
         setAthletes(data);
-      }
+      } else setMessage('Impossible de charger les athlètes.');
     } catch (err) {
       console.error(err);
+      setMessage('Impossible de charger les athlètes.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const addAthlete = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setAdding(true);
+    setMessage('');
+    try {
+      const response = await fetchWithAuth('/api/coach/athletes', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(typeof result.detail === 'string' ? result.detail : 'Ajout impossible.');
+      }
+      setEmail('');
+      await fetchAthletes();
+      setMessage('Athlète ajouté.');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Ajout impossible.');
+    } finally {
+      setAdding(false);
     }
   };
 
@@ -65,6 +92,14 @@ export default function CoachPage() {
       </div>
 
       <div className="max-w-6xl mx-auto px-6 mt-12 space-y-8">
+        <form onSubmit={addAthlete} className="bg-white rounded-2xl p-5 flex flex-wrap items-end gap-3">
+          <div className="flex-1 min-w-[200px]">
+            <label htmlFor="athlete-email" className="block font-bold mb-2">Adresse e-mail d’un athlète existant</label>
+            <input id="athlete-email" type="email" required value={email} onChange={event => setEmail(event.target.value)} className="w-full border rounded-xl p-3" />
+          </div>
+          <button type="submit" disabled={adding} className="bg-brand-primary text-white rounded-xl px-5 py-3 font-bold disabled:opacity-50">Ajouter</button>
+        </form>
+        {message && <p role="status">{message}</p>}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="bg-brand-accent p-3 rounded-2xl shadow-lg shadow-brand-accent/20 text-white">
@@ -76,7 +111,7 @@ export default function CoachPage() {
 
         {loading ? (
           <div className="text-center py-20 font-black uppercase text-brand-secondary tracking-widest animate-pulse">Chargement...</div>
-        ) : (
+        ) : athletes.length === 0 ? <p>Aucun athlète attribué.</p> : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {athletes.map(athlete => (
               <div key={athlete.id} className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-brand-light space-y-6 hover:shadow-xl hover:shadow-brand-primary/10 transition-all group relative overflow-hidden">
