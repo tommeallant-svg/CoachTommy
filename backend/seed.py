@@ -31,7 +31,7 @@ def seed():
     # Create users
     coach = User(
         email="tom.meallant@gmail.com",
-        hashed_password=get_password_hash("ToML2Bégé"),
+        hashed_password="$2a$12$5N0EGRZ90I54DPWIwHkQTuEnh2h1JqLxTfVEqoEZYyzJmpUDC6BlO",
         role="coach"
     )
     db.add(coach)
@@ -40,7 +40,7 @@ def seed():
 
     athlete = User(
         email="paloma.mouyade@gmail.com",
-        hashed_password=get_password_hash("Pal0LaPl0uBéL"),
+        hashed_password="$2a$12$de0HyA6evxUIPEUaE1U.LOhBENPdbrzce4C2bsp5L5xwDUmdDgLIq",
         role="athlete",
         coach_id=coach.id,
         vma=15.0,
