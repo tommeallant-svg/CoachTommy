@@ -44,7 +44,7 @@ export default function NotificationSettings() {
     void load();
   }, []);
 
-  const subscribe = async () => {
+  const subscribe = async (enableAccount = false) => {
     setBusy(true);
     setError('');
     setStatus('');
@@ -53,7 +53,8 @@ export default function NotificationSettings() {
       if (!configuredKey) throw new Error('La clé publique VAPID n’est pas configurée.');
       const key = publicKey(configuredKey);
       const permission = await Notification.requestPermission();
-      if (permission !== 'granted') throw new Error('Permission refusée ou non accordée. Vérifiez les réglages du navigateur.');
+      if (permission === 'denied') throw new Error('Les notifications sont bloquées pour ce site. Autorisez-les dans les réglages du navigateur, puis réessayez.');
+      if (permission !== 'granted') throw new Error('Autorisez les notifications dans la demande du navigateur pour continuer.');
       const registration = await navigator.serviceWorker.register('/notification-sw.js');
       const existing = await registration.pushManager.getSubscription();
       const existingKey = existing?.options.applicationServerKey;
@@ -64,7 +65,10 @@ export default function NotificationSettings() {
       const data = subscription.toJSON();
       if (!data.endpoint || !data.keys?.p256dh || !data.keys?.auth) throw new Error('Abonnement incomplet.');
       await request('/subscriptions', { method: 'POST', body: JSON.stringify({ endpoint: data.endpoint, keys: { p256dh: data.keys.p256dh, auth: data.keys.auth } }) });
-      setStatus('Appareil enregistré. Activez aussi la préférence générale pour recevoir les notifications.');
+      if (enableAccount) {
+        await request('/preferences', { method: 'PUT', body: JSON.stringify({ push_enabled: true }) });
+      }
+      setStatus(enableAccount ? 'Notifications activées et appareil enregistré.' : 'Appareil enregistré. Activez aussi la préférence générale pour recevoir les notifications.');
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Impossible d’enregistrer cet appareil.');
@@ -111,8 +115,8 @@ export default function NotificationSettings() {
     {error && <p role="alert" className="text-red-700">{error} <button type="button" className="underline" onClick={load}>Actualiser</button></p>}
     <p role="status">{status}</p>
     <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-      <button type="button" className={buttonClass} disabled={busy || enabled === null} onClick={changePreference}>{enabled ? 'Désactiver les notifications' : 'Activer les notifications'}</button>
-      <button type="button" className={buttonClass} disabled={busy || !!support} onClick={subscribe}>Enregistrer cet appareil</button>
+      <button type="button" className={buttonClass} disabled={busy || enabled === null || (!enabled && !!support)} onClick={() => enabled ? changePreference() : subscribe(true)}>{enabled ? 'Désactiver les notifications' : 'Activer les notifications'}</button>
+      <button type="button" className={buttonClass} disabled={busy || !!support} onClick={() => subscribe()}>Enregistrer cet appareil</button>
     </div>
     <h3 className="font-bold">Appareils enregistrés</h3>
     <p className="text-sm text-gray-600">Les appareils sont identifiés par un numéro. Leur suppression ne modifie pas la permission du navigateur.</p>
