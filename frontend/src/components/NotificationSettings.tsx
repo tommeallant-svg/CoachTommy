@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { fetchWithAuth } from '@/lib/api';
+import { waitForActiveWorker } from '@/lib/notificationRegistration';
 
 const buttonClass = 'w-full sm:w-auto rounded-2xl bg-brand-dark px-5 py-3 font-bold text-white hover:bg-brand-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary disabled:opacity-50';
 
@@ -56,6 +57,7 @@ export default function NotificationSettings() {
       if (permission === 'denied') throw new Error('Les notifications sont bloquées pour ce site. Autorisez-les dans les réglages du navigateur, puis réessayez.');
       if (permission !== 'granted') throw new Error('Autorisez les notifications dans la demande du navigateur pour continuer.');
       const registration = await navigator.serviceWorker.register('/notification-sw.js');
+      await waitForActiveWorker(registration);
       const existing = await registration.pushManager.getSubscription();
       const existingKey = existing?.options.applicationServerKey;
       if (existingKey && (new Uint8Array(existingKey).length !== key.length || new Uint8Array(existingKey).some((byte, i) => byte !== key[i]))) {
