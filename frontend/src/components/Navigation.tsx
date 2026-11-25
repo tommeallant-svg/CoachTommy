@@ -29,9 +29,8 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
   return (
     <div className="md:flex min-h-screen">
       <div className="md:hidden bg-brand-dark p-4">
-        <button type="button" className="flex items-center gap-3 text-white font-bold" aria-expanded={open} aria-controls="main-navigation" onClick={() => setOpen(!open)}>
+        <button type="button" className="flex items-center text-white font-bold" aria-label={open ? 'Fermer le menu' : 'Ouvrir le menu'} aria-expanded={open} aria-controls="main-navigation" onClick={() => setOpen(!open)}>
           <Image src="/logo-coachtommy.jpg" alt="" width={64} height={48} className="w-16 h-auto rounded-lg" />
-          <span>{open ? 'Fermer le menu' : 'Ouvrir le menu'}</span>
         </button>
       </div>
       <nav id="main-navigation" aria-label="Navigation principale" className={`${open ? 'block' : 'hidden'} md:block bg-brand-dark text-white p-5 md:w-56 shrink-0`}>
