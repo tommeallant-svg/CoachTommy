@@ -93,6 +93,16 @@ Les listes `history` et `workouts` prennent `skip` (défaut 0, minimum 0) et `li
 
 L'accès IA est limité aux plans et séances de l'athlète associé à la clé, pas aux autres athlètes ni aux routes Strava. Ne transmettez pas de données Strava à un service IA ou à un coach sans vérifier les autorisations et conditions applicables. L'intégration externe doit être développée et vérifiée pour le client choisi : aucune compatibilité universelle, configuration automatique ou intégration native à un assistant particulier n'est garantie ; le frontend actuel ne fournit pas de gestion de clé IA.
 
+## Notifications web-push
+
+Les utilisateurs activent les notifications et enregistrent chaque appareil depuis Profil. Les rappels des séances non validées sont prévus à 8 h et 21 h en heure de Paris ; le coach associé est averti lorsqu'un athlète valide sa séance. L'autorisation du navigateur et une connexion HTTPS sont nécessaires (localhost est généralement accepté pour le développement). Sur iPhone, ajouter l'application à l'écran d'accueil et l'ouvrir depuis celui-ci avant de demander l'autorisation. Le navigateur et le système peuvent retarder ou bloquer la livraison.
+
+Générer une paire VAPID P-256 dédiée et conserver la clé privée hors du dépôt. Configurer `VAPID_PRIVATE_KEY` avec les 32 octets de la clé privée encodés en base64url sans remplissage et `VAPID_SUBJECT` avec une adresse de contact `mailto:...` ou une URL HTTPS. Configurer `NEXT_PUBLIC_VAPID_PUBLIC_KEY` avec la clé publique non compressée de 65 octets encodée en base64url sans remplissage ; elle est publique et intégrée lors de la construction du frontend. Une rotation de la paire peut nécessiter la réinscription des appareils.
+
+Docker Compose lance `notification-worker` séparément, avec la même base que l'API. Sur Railway ou Kubernetes, créer un service de travail distinct à partir de l'image backend, exécutant `python -m app.notification_worker`, avec `DATABASE_URL`, `JWT_SECRET_KEY`, `VAPID_PRIVATE_KEY` et `VAPID_SUBJECT` configurés dans le gestionnaire de secrets ; reconstruire le frontend avec la clé publique. Les tables sont ajoutées sans supprimer les données. Protéger la base et ses sauvegardes : les endpoints et clés d'abonnement y sont conservés.
+
+Les livraisons échouées sont réessayées et les abonnements expirés retirés. Après une panne, un fournisseur ayant accepté un message avant l'enregistrement du résultat peut recevoir un doublon. Les données de notification sont limitées au type et à l'identifiant de séance ; aucune donnée Strava n'est envoyée. L'activation et la livraison réelles dépendent du fournisseur push, du navigateur et de la configuration de déploiement.
+
 ## Déploiement Kubernetes
 
 ```bash

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Activity, ArrowLeft, LogOut, Watch } from 'lucide-react';
 import AthleteStatsModal from '@/components/AthleteStatsModal';
 import GarminAuthModal from '@/components/GarminAuthModal';
+import NotificationSettings from '@/components/NotificationSettings';
 import { clearAuthToken, fetchWithAuth, getAuthToken } from '@/lib/api';
 import { User } from '@/types/user';
 
@@ -185,6 +186,8 @@ export default function ProfilePage() {
             <p role="status">{aiCopied ? 'Clé copiée.' : ''}</p>
           </div>}
         </section>}
+
+        {user && <NotificationSettings />}
 
         <section className="space-y-4 rounded-3xl bg-white p-6 shadow-sm" aria-labelledby="garmin-title">
           <h2 id="garmin-title" className="flex items-center gap-2 text-xl font-black"><Watch className="h-5 w-5" /> Garmin</h2>

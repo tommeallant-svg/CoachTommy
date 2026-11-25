@@ -13,6 +13,8 @@ from typing import List, Optional
 from ..database import get_db
 from ..models.workout import Workout
 from ..models.user import User
+from ..models.notification import NotificationEvent
+from .notifications import insert_for
 from garminconnect import Garmin
 import os
 from pathlib import Path
@@ -168,7 +170,6 @@ def update_workout(workout_id: int, workout: WorkoutUpdate, db: Session = Depend
     
     update_data = workout.model_dump(exclude_unset=True)
 
-    
     # Si athlete_id est mis à jour, vérifier qu'il s'agit d'un athlète valide (si coach)
     if "athlete_id" in update_data and current_user.role == "coach":
         athlete_id = update_data["athlete_id"]
@@ -180,6 +181,16 @@ def update_workout(workout_id: int, workout: WorkoutUpdate, db: Session = Depend
         # Un athlète ne peut pas changer son propre athlete_id pour celui d'un autre
         update_data.pop("athlete_id")
 
+    if update_data.get("is_validated") is True and db_workout.athlete_id == current_user.id and current_user.coach_id:
+        changed = db.query(Workout).filter(
+            Workout.id == workout_id, Workout.is_validated.is_not(True)
+        ).update({Workout.is_validated: True}, synchronize_session=False)
+        if changed:
+            statement = insert_for(db)(NotificationEvent).values(
+                event_key=f"workout_validated:{workout_id}", user_id=current_user.coach_id,
+                kind="workout_validated", workout_id=workout_id,
+            ).on_conflict_do_nothing(index_elements=[NotificationEvent.event_key])
+            db.execute(statement)
     return update_workout_service(db, db_workout, update_data)
 
 @router.post("/{workout_id}/validate", response_model=WorkoutResponse)
@@ -189,8 +200,16 @@ def validate_workout(workout_id: int, validation: WorkoutValidation, db: Session
     db_workout = query.first()
     if db_workout is None:
         raise HTTPException(status_code=404, detail="Workout not found")
-    
-    db_workout.is_validated = True
+
+    changed = db.query(Workout).filter(
+        Workout.id == workout_id, Workout.is_validated.is_not(True)
+    ).update({Workout.is_validated: True}, synchronize_session=False)
+    if changed and db_workout.athlete_id == current_user.id and current_user.coach_id and current_user.coach_id != current_user.id:
+        statement = insert_for(db)(NotificationEvent).values(
+            event_key=f"workout_validated:{workout_id}", user_id=current_user.coach_id,
+            kind="workout_validated", workout_id=workout_id,
+        ).on_conflict_do_nothing(index_elements=[NotificationEvent.event_key])
+        db.execute(statement)
     db_workout.perceived_difficulty = validation.perceived_difficulty
     db_workout.athlete_comment = validation.athlete_comment
     
