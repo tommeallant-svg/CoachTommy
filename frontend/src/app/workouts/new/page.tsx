@@ -19,6 +19,7 @@ import {
 import { format } from 'date-fns';
 import Link from 'next/link';
 import { fetchWithAuth, getAuthUser } from '@/lib/api';
+import { WorkoutSport } from '@/types/workout';
 
 const WORKOUT_TYPES = ['Libre', 'Endurance', 'Fractionné', 'Sortie Longue', 'Trail'];
 
@@ -38,7 +39,7 @@ function NewManualWorkoutPageContent() {
 
   const [formData, setFormData] = useState({
     name: '',
-    sport: 'running' as 'running' | 'cycling',
+    sport: 'running' as WorkoutSport,
     duration_minutes: 45,
     distance_km: 7.5,
     workout_type: 'Libre',
@@ -137,7 +138,7 @@ function NewManualWorkoutPageContent() {
   const handleSelectFromCatalog = async (catalogWorkout: any) => {
     const scheme = catalogWorkout.scheme || [];
     const isCycling = catalogWorkout.sport === 'cycling';
-    if ((isCycling && !athleteFtp) || (!isCycling && !athleteVma)) {
+    if ((isCycling && (!athleteFtp || athleteFtp <= 0)) || (catalogWorkout.sport === 'running' && (!athleteVma || athleteVma <= 0))) {
       alert("Les statistiques de l'athlète sont indisponibles. Renseignez sa VMA ou sa FTP avant de sélectionner une séance.");
       return;
     }
@@ -145,7 +146,7 @@ function NewManualWorkoutPageContent() {
     
     const processedScheme = scheme.map((block: any) => {
       const repetitions = block.repetitions || 1;
-      const processedIntervals = block.intervals?.map((interval: any) => {
+      const processedIntervals = (block.intervals || [block]).map((interval: any) => {
         const newInterval = { ...interval };
         
         if (isCycling && athleteFtp) {
@@ -155,7 +156,7 @@ function NewManualWorkoutPageContent() {
           if (interval.power_ftp_max !== undefined) {
             newInterval.power_watt_max = Math.round(athleteFtp * (interval.power_ftp_max / 100));
           }
-        } else if (!isCycling && athleteVma) {
+        } else if (catalogWorkout.sport === 'running' && athleteVma) {
           if (interval.pace_vma_min !== undefined && interval.pace_vma_max !== undefined) {
             newInterval.pace_min = convertVmaPercentageToPace(athleteVma, interval.pace_vma_min);
             newInterval.pace_max = convertVmaPercentageToPace(athleteVma, interval.pace_vma_max);
@@ -281,10 +282,12 @@ function NewManualWorkoutPageContent() {
                 <select
                   className="w-full px-6 py-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-black focus:bg-white outline-none transition-all font-bold appearance-none cursor-pointer"
                   value={formData.sport}
-                  onChange={e => setFormData({...formData, sport: e.target.value as 'running' | 'cycling'})}
+                  onChange={e => setFormData({...formData, sport: e.target.value as WorkoutSport, scheme: [], distance_km: 0})}
                 >
                   <option value="running">Course à pied</option>
                   <option value="cycling">Cyclisme</option>
+                  <option value="swimming">Natation</option>
+                  <option value="strength">Musculation</option>
                 </select>
               </div>
               <div className="space-y-2">
@@ -352,6 +355,27 @@ function NewManualWorkoutPageContent() {
               </div>
             </div>
 
+            {(formData.sport === 'strength' || formData.sport === 'swimming') && (
+              <div className="space-y-4">
+                <h3 className="font-black uppercase">Structure</h3>
+                {formData.scheme.map((block, b) => (
+                  <div key={b} className="p-4 bg-gray-50 rounded-xl space-y-3">
+                    <label>Répétitions du bloc / séries <input type="number" min="1" required value={block.repetitions} onChange={e => setFormData({...formData, scheme: formData.scheme.map((item, i) => i === b ? {...item, repetitions: Number(e.target.value)} : item)})} className="ml-2 w-20 p-2" /></label>
+                    {block.intervals.map((interval: any, i: number) => (
+                      <div key={i} className="grid grid-cols-2 gap-2">
+                        {[["type", formData.sport === 'strength' ? 'Nom de l’exercice' : 'Type'], ...(formData.sport === 'strength' ? [['exercise_repetitions', 'Répétitions exercice'], ['load_kg', 'Charge (kg)']] : [['distance', 'Distance (m)']]), ['duration', 'Durée facultative (min)'], ['recovery_seconds', 'Récupération (s)']].map(([field, label]) => (
+                          <label key={field} className="text-xs font-bold">{label}<input type={field === 'type' ? 'text' : 'number'} min={field === 'type' ? undefined : '0'} step="any" value={interval[field] ?? ''} onChange={e => { const value = e.target.value; setFormData({...formData, scheme: formData.scheme.map((item, j) => j === b ? {...item, intervals: item.intervals.map((v: any, k: number) => k === i ? {...v, [field]: field === 'type' ? value : value === '' ? undefined : Number(value)} : v)} : item)}); }} className="w-full p-2 rounded" /></label>
+                        ))}
+                        <button type="button" onClick={() => setFormData({...formData, scheme: formData.scheme.map((item, j) => j === b ? {...item, intervals: item.intervals.filter((_: any, k: number) => k !== i)} : item)})}>Supprimer l’intervalle</button>
+                      </div>
+                    ))}
+                    <button type="button" onClick={() => setFormData({...formData, scheme: formData.scheme.map((item, j) => j === b ? {...item, intervals: [...item.intervals, {type: ''}]} : item)})}>Ajouter un intervalle</button>{' · '}
+                    <button type="button" onClick={() => setFormData({...formData, scheme: formData.scheme.filter((_, j) => j !== b)})}>Supprimer le bloc</button>
+                  </div>
+                ))}
+                <button type="button" onClick={() => setFormData({...formData, scheme: [...formData.scheme, {repetitions: 1, intervals: [{type: ''}]}]})}>Ajouter un bloc</button>
+              </div>
+            )}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 ml-1">

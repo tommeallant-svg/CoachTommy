@@ -167,6 +167,27 @@ class WorkoutApiTests(unittest.TestCase):
             'scheme': [{'repetitions': 1, 'intervals': [{'distance': 1000}]}]})
         self.assertEqual(response.status_code, 422, response.text)
 
+    def test_new_sports_and_garmin_guard(self):
+        data = {'name': 'Natation', 'workout_type': 'Libre', 'duration_minutes': 40,
+                'difficulty_level': 5, 'date': '2026-12-01T10:00:00', 'sport': 'swimming',
+                'scheme': [{'repetitions': 4, 'intervals': [{'type': 'swim', 'distance': 100,
+                                                              'recovery_seconds': 30}]}]}
+        response = self.client.post('/api/workouts', json=data)
+        self.assertEqual(response.status_code, 201, response.text)
+        self.assertEqual((response.json()['duration_minutes'], response.json()['distance_km']), (40, 0.4))
+        url = '/api/workouts/' + str(response.json()['id'])
+        for sport in ('swimming', 'strength'):
+            response = self.client.patch(url, json={'sport': sport})
+            self.assertEqual(response.status_code, 200, response.text)
+            self.assertEqual(self.client.get(url + '/garmin').status_code, 422)
+            self.assertEqual(self.client.post(url + '/garmin/push').status_code, 422)
+            self.assertEqual(self.client.post('/api/auth/garmin/sync-workout/' + str(response.json()['id'])).status_code, 422)
+        for field in ('duration', 'distance', 'exercise_repetitions', 'load_kg', 'recovery_seconds'):
+            response = self.client.patch(url, json={'scheme': [{'intervals': [{field: -1}]}]})
+            self.assertEqual(response.status_code, 422, response.text)
+        response = self.client.get(url)
+        self.assertEqual(response.json()['scheme'], data['scheme'])
+
     def test_real_plan_generation(self):
         response = self.client.post('/api/plans', json={
             'race_name': '10 km', 'race_date': '2027-02-01T00:00:00', 'race_distance': 10,

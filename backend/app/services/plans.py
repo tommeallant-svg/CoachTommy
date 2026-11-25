@@ -61,7 +61,8 @@ def create_plan(db, plan_in, athlete_id):
                 workout.estimated_load = workout.duration_minutes * (1 + workout.difficulty_level / 5)
             db.add(workout)
         athlete = db.query(User).filter(User.id == athlete_id).one()
-        athlete.vma = 60 / plan_in.estimated_vma
+        if plan_in.estimated_vma is not None:
+            athlete.vma = 60 / plan_in.estimated_vma
         db.commit()
         db.refresh(db_plan)
         return db_plan

@@ -311,7 +311,12 @@ def validate_plan_inputs(plan):
     if plan.race_date <= plan.start_date:
         raise ValueError("La date de course doit être postérieure à la date de début du plan.")
 
-    if not plan.estimated_vma or plan.estimated_vma <= 0:
+    days = plan.training_days
+    multisport = isinstance(days, dict) and any(isinstance(v, dict) for v in days.values())
+    needs_vma = not multisport or any(
+        not isinstance(v, dict) or v.get('sport') == 'running' for v in days.values()
+    )
+    if needs_vma and (not plan.estimated_vma or plan.estimated_vma <= 0):
         raise ValueError("La VMA estimée (min/km) est obligatoire et doit être positive.")
 
 
@@ -334,6 +339,11 @@ class PlanGenerator:
 
     def generate(self):
         validate_plan_inputs(self.plan)
+
+        if isinstance(self.plan.training_days, dict) and any(
+            isinstance(value, dict) for value in self.plan.training_days.values()
+        ):
+            return self._generate_multisport()
 
         race_date = self.plan.race_date
         start_date = self.plan.start_date
@@ -360,6 +370,65 @@ class PlanGenerator:
         if race_workout:
             self.workouts.append(race_workout)
 
+        return self.workouts
+
+    def _generate_multisport(self):
+        from ..models.workout import Workout
+
+        days = self.plan.training_days
+        if len(days) != self.plan.sessions_per_week:
+            raise ValueError("Le nombre de jours doit correspondre aux séances par semaine.")
+        assignment = {}
+        for key, value in days.items():
+            try:
+                day = int(key)
+            except (TypeError, ValueError):
+                raise ValueError("Jour d'entraînement invalide.")
+            if not 0 <= day <= 6 or day in assignment:
+                raise ValueError("Jour d'entraînement invalide ou dupliqué.")
+            if isinstance(value, str):
+                value = {'sport': 'running', 'category': value}
+            if not isinstance(value, dict) or value.get('sport') not in ('running', 'cycling', 'swimming', 'strength'):
+                raise ValueError("Sport d'entraînement invalide.")
+            assignment[day] = value
+
+        self.dist_key = get_distance_key(self.plan.race_distance, self.plan.goal_type)
+        self.phases = PHASES_BY_DISTANCE[self.dist_key]
+        self.catalog = [w for w in self.catalog if getattr(w, 'sport', None) in (None, 'running')]
+        weeks = math.ceil((self.plan.race_date - self.plan.start_date).days / 7)
+        for week in range(weeks):
+            for day, value in sorted(assignment.items()):
+                date = self.plan.start_date + timedelta(weeks=week, days=day)
+                if self._skip_date(date, self.plan.race_date):
+                    continue
+                sport = value['sport']
+                category = value.get('category', 'Endurance')
+                if sport == 'running':
+                    if week == weeks - 1 and category in LONG_RUN_CATEGORIES:
+                        category = 'Endurance'
+                    if category == 'Fractionné':
+                        workout = self._create_fractionne(date, self.get_phase(weeks - week, self.phases), 60)
+                    elif category in LONG_RUN_CATEGORIES:
+                        workout = self._create_long_run(category, date, 120)
+                    elif category == 'Libre':
+                        workout = self._create_libre(date, 40)
+                    else:
+                        workout = self._create_endurance(date, 40)
+                    workout.sport = 'running'
+                else:
+                    labels = {'cycling': 'Vélo', 'swimming': 'Natation', 'strength': 'Musculation'}
+                    duration = 40 if sport != 'strength' else 30
+                    interval = {'type': labels[sport], 'duration': duration}
+                    if sport == 'strength':
+                        interval.update(type='Renforcement général', exercise_repetitions=10, recovery_seconds=60)
+                    workout = Workout(sport=sport, name=labels[sport], workout_type=labels[sport],
+                                      category='Endurance' if sport != 'strength' else 'Libre',
+                                      duration_minutes=duration, difficulty_level=3, date=date,
+                                      scheme=[{'repetitions': 1, 'intervals': [interval]}],
+                                      athlete_id=self.plan.athlete_id, estimated_load=_load_of(duration, 3))
+                self.workouts.append(workout)
+        if any(value['sport'] == 'running' for value in assignment.values()):
+            self.workouts.append(self._create_race_workout())
         return self.workouts
 
     # -- Phases --------------------------------------------------------------
@@ -860,12 +929,13 @@ class PlanGenerator:
         non-spécifique et montée, seuil/tempo/allure en spécifique, relances
         courtes en affûtage — puis tri par charge croissante.
         """
-        if not self.catalog:
+        catalog = [w for w in self.catalog if getattr(w, 'sport', None) in (None, 'running')]
+        if not catalog:
             return []
 
         keywords = [_norm(kw) for kw in PHASE_KEYWORDS.get(phase, [])]
         scored = []
-        for workout in self.catalog:
+        for workout in catalog:
             haystack = _norm(
                 f"{getattr(workout, 'workout_type', '') or ''} {getattr(workout, 'name', '') or ''}"
             )
@@ -931,7 +1001,7 @@ class PlanGenerator:
             return 0.0
         if interval.get("duration"):
             return float(interval["duration"])
-        distance = interval.get("distance") / 1000.0
+        distance = (interval.get("distance") or 0) / 1000.0
         if not distance:
             return 0.0
         return float(distance) * self._interval_pace_decimal(interval)

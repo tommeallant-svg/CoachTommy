@@ -24,7 +24,7 @@ import {
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import Link from 'next/link';
-import { Workout, WorkoutInterval, WorkoutBlock } from '@/types/workout';
+import { Workout, WorkoutInterval, WorkoutBlock, WorkoutSport } from '@/types/workout';
 import { fetchWithAuth, getAuthUser } from '@/lib/api';
 import { Save, Edit2, Trash2 } from 'lucide-react';
 import GarminAuthModal from '@/components/GarminAuthModal';
@@ -63,7 +63,7 @@ export default function WorkoutDetailPage() {
 
   const [editFormData, setEditFormData] = useState({
     name: '',
-    sport: 'running' as 'running' | 'cycling',
+    sport: 'running' as WorkoutSport,
     workout_type: '',
     duration_minutes: 0,
     difficulty_level: 0,
@@ -273,7 +273,7 @@ export default function WorkoutDetailPage() {
     // Convertir le scheme du catalogue au format workout avec les stats de l'athlète
     const scheme = catalogWorkout.scheme || [];
     const isCycling = catalogWorkout.sport === 'cycling';
-    if ((isCycling && (!athleteFtp || athleteFtp <= 0)) || (!isCycling && (!athleteVma || athleteVma <= 0))) {
+    if ((isCycling && (!athleteFtp || athleteFtp <= 0)) || (catalogWorkout.sport === 'running' && (!athleteVma || athleteVma <= 0))) {
       alert("Les statistiques de l'athlète sont indisponibles. Renseignez sa VMA ou sa FTP avant de sélectionner une séance.");
       return;
     }
@@ -282,7 +282,7 @@ export default function WorkoutDetailPage() {
     let totalDuration = 0;
     const processedScheme = scheme.map((block: any) => {
       const repetitions = block.repetitions || 1;
-      const processedIntervals = block.intervals?.map((interval: any) => {
+      const processedIntervals = (block.intervals || [block]).map((interval: any) => {
         const newInterval = { ...interval };
         
         if (isCycling && athleteFtp) {
@@ -292,7 +292,7 @@ export default function WorkoutDetailPage() {
           if (interval.power_ftp_max !== undefined) {
             newInterval.power_watt_max = Math.round(athleteFtp * (interval.power_ftp_max / 100));
           }
-        } else if (!isCycling && athleteVma) {
+        } else if (catalogWorkout.sport === 'running' && athleteVma) {
           if (interval.pace_vma_min !== undefined && interval.pace_vma_max !== undefined) {
             newInterval.pace_min = convertVmaPercentageToPace(athleteVma, interval.pace_vma_min);
             newInterval.pace_max = convertVmaPercentageToPace(athleteVma, interval.pace_vma_max);
@@ -512,8 +512,6 @@ export default function WorkoutDetailPage() {
                 <button
                   type="button"
                   onClick={handleOpenCatalog}
-                  disabled={!athleteVma && !athleteFtp}
-                  title={(!athleteVma && !athleteFtp) ? "Les statistiques de l'athlète (VMA/FTP) ne sont pas disponibles." : undefined}
                   className="flex items-center gap-2 bg-white text-brand-dark border border-brand-light px-4 py-2 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-brand-primary hover:text-white transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <BookOpen className="w-4 h-4" />
@@ -526,10 +524,12 @@ export default function WorkoutDetailPage() {
                   <select
                     className="w-full px-6 py-4 rounded-2xl bg-brand-surface border-2 border-transparent focus:border-brand-primary focus:bg-white outline-none transition-all font-bold appearance-none cursor-pointer text-brand-dark"
                     value={editFormData.sport}
-                    onChange={e => setEditFormData({...editFormData, sport: e.target.value as 'running' | 'cycling'})}
+                    onChange={e => setEditFormData({...editFormData, sport: e.target.value as WorkoutSport, scheme: []})}
                   >
                     <option value="running">Course à pied</option>
                     <option value="cycling">Cyclisme</option>
+                    <option value="swimming">Natation</option>
+                    <option value="strength">Musculation</option>
                   </select>
                 </div>
                 <div className="space-y-2">
@@ -592,7 +592,27 @@ export default function WorkoutDetailPage() {
                 />
               </div>
 
-              <div className="space-y-4">
+              {(editFormData.sport === 'strength' || editFormData.sport === 'swimming') ? (
+                <div className="space-y-4">
+                  <h3 className="font-black uppercase">Structure</h3>
+                  {editFormData.scheme.map((block, b) => (
+                    <div key={b} className="p-4 bg-brand-surface rounded-xl space-y-3">
+                      <label>Répétitions du bloc / séries <input type="number" min="1" required value={block.repetitions} onChange={e => setEditFormData({...editFormData, scheme: editFormData.scheme.map((item, j) => j === b ? {...item, repetitions: Number(e.target.value)} : item)})} className="ml-2 w-20 p-2" /></label>
+                      {(block.intervals || []).map((interval: any, i: number) => (
+                        <div key={i} className="grid grid-cols-2 gap-2">
+                          {[["type", editFormData.sport === 'strength' ? 'Nom de l’exercice' : 'Type'], ...(editFormData.sport === 'strength' ? [['exercise_repetitions', 'Répétitions exercice'], ['load_kg', 'Charge (kg)']] : [['distance', 'Distance (m)']]), ['duration', 'Durée facultative (min)'], ['recovery_seconds', 'Récupération (s)']].map(([field, label]) => (
+                            <label key={field} className="text-xs font-bold">{label}<input type={field === 'type' ? 'text' : 'number'} min={field === 'type' ? undefined : '0'} step="any" value={interval[field] ?? ''} onChange={e => { const value = e.target.value; setEditFormData({...editFormData, scheme: editFormData.scheme.map((item, j) => j === b ? {...item, intervals: item.intervals.map((v: any, k: number) => k === i ? {...v, [field]: field === 'type' ? value : value === '' ? undefined : Number(value)} : v)} : item)}); }} className="w-full p-2 rounded" /></label>
+                          ))}
+                          <button type="button" onClick={() => setEditFormData({...editFormData, scheme: editFormData.scheme.map((item, j) => j === b ? {...item, intervals: item.intervals.filter((_: any, k: number) => k !== i)} : item)})}>Supprimer l’intervalle</button>
+                        </div>
+                      ))}
+                      <button type="button" onClick={() => setEditFormData({...editFormData, scheme: editFormData.scheme.map((item, j) => j === b ? {...item, intervals: [...(item.intervals || []), {type: ''}]} : item)})}>Ajouter un intervalle</button>{' · '}
+                      <button type="button" onClick={() => setEditFormData({...editFormData, scheme: editFormData.scheme.filter((_, j) => j !== b)})}>Supprimer le bloc</button>
+                    </div>
+                  ))}
+                  <button type="button" onClick={() => setEditFormData({...editFormData, scheme: [...editFormData.scheme, {repetitions: 1, intervals: [{type: ''}]}]})}>Ajouter un bloc</button>
+                </div>
+              ) : <div className="space-y-4">
                 <label className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-secondary ml-1">Structure (JSON)</label>
                 <textarea
                   className="w-full px-6 py-4 rounded-2xl bg-brand-surface border-2 border-transparent focus:border-brand-primary focus:bg-white outline-none font-mono text-xs min-h-[200px] text-brand-dark"
@@ -605,7 +625,7 @@ export default function WorkoutDetailPage() {
                     }
                   }}
                 />
-              </div>
+              </div>}
               
               <div className="flex gap-4 pt-4">
                 <button
@@ -647,7 +667,7 @@ export default function WorkoutDetailPage() {
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2 mt-4 md:mt-6">
-                    <button
+                    {(workout.sport === 'running' || workout.sport === 'cycling') && <><button
                       onClick={handleGarminExport}
                       disabled={isCheckingGarmin}
                       className="flex items-center gap-2 bg-brand-primary text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-brand-secondary transition-all shadow-lg active:scale-[0.98] disabled:opacity-50"
@@ -666,7 +686,7 @@ export default function WorkoutDetailPage() {
                         <Watch className="w-4 h-4" />
                       )}
                       {garminConnected ? 'Envoyer vers Garmin' : 'Connecter à Garmin'}
-                    </button>
+                    </button></>}
                     <button
                       type="button"
                       onClick={() => setShowCalendar(!showCalendar)}
@@ -788,7 +808,7 @@ export default function WorkoutDetailPage() {
                           )}
 
                           <div className="space-y-2 md:space-y-4">
-                            {block.intervals.map((interval, iIdx) => (
+                            {(block.intervals || [block as unknown as WorkoutInterval]).map((interval, iIdx) => (
                               <div key={iIdx} className="bg-white p-3 md:p-8 rounded-xl md:rounded-[2rem] border border-brand-light flex flex-col md:flex-row md:items-center justify-between group/item hover:border-brand-primary transition-all shadow-sm">
                                 <div className="flex items-center gap-3 md:gap-8 mb-2 md:mb-0">
                                   <div className="w-8 h-8 md:w-12 md:h-12 bg-brand-surface rounded-lg md:rounded-2xl flex items-center justify-center font-black text-sm md:text-base text-brand-dark border border-brand-light group-hover/item:bg-brand-primary group-hover/item:text-white transition-all">
@@ -800,17 +820,16 @@ export default function WorkoutDetailPage() {
                                       <span className="w-2 h-[2px] bg-brand-accent" />
                                       {workout.sport === 'cycling' ? (
                                         <>Puissance: {interval.power_watt_min}W {interval.power_watt_max && interval.power_watt_max !== interval.power_watt_min ? `- ${interval.power_watt_max}W` : ''}</>
-                                      ) : (
+                                      ) : workout.sport === 'running' ? (
                                         <>Allure: {interval.pace_min} {interval.pace_max && interval.pace_max !== interval.pace_min ? `- ${interval.pace_max}` : ''}</>
-                                      )}
+                                      ) : <>{interval.exercise_repetitions != null && `${interval.exercise_repetitions} répétitions `}{interval.load_kg != null && `${interval.load_kg} kg `}{interval.recovery_seconds != null && `Récupération ${interval.recovery_seconds} s`}</>}
                                     </div>
                                   </div>
                                 </div>
                                 <div className="flex md:block items-end justify-between border-t md:border-t-0 border-brand-surface pt-2 md:pt-0">
                                   <span className="text-[9px] font-black uppercase tracking-widest text-brand-secondary md:hidden">Volume</span>
                                   <div className="text-xl md:text-4xl font-black tracking-tighter text-brand-dark">
-                                    {interval.duration || interval.distance}
-                                    <span className="text-[10px] md:text-sm ml-1 md:ml-2 opacity-30 font-bold uppercase">{interval.duration !== undefined ? 'min' : 'm'}</span>
+                                    {interval.distance != null && `${interval.distance} m `}{interval.duration != null && `${interval.duration} min`}
                                   </div>
                                 </div>
                               </div>

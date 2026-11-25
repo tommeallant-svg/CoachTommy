@@ -56,7 +56,7 @@ La clé est **secrète et personnelle** : ne l'écrivez jamais dans un dépôt, 
 
 `POST /api/ai/plans` — le serveur génère l'intégralité des séances (phases, volumes, allures basées sur la VMA). Vous ne choisissez pas le contenu des séances : vous fournissez le cadre, le moteur de génération fait le reste.
 
-**Corps de requête** (tous les champs sont obligatoires sauf `race_estimated_time`) :
+**Corps de requête** (tous les champs sont obligatoires sauf `race_estimated_time` et, pour les plans sans course, `estimated_vma`) :
 
 ```json
 {
@@ -80,7 +80,9 @@ La clé est **secrète et personnelle** : ne l'écrivez jamais dans un dépôt, 
 - `sessions_per_week` : entier de **1 à 7** ;
 - `goal_type` : `plaisir`, `maintien`, `mixte`, `intensité` ou `trail` (accents et casse tolérés) ;
 - `training_days` : soit une **liste de jours** (`0`=lundi … `6`=dimanche, ex. `[1, 3, 5]`), soit un **objet jour → catégorie** (ex. `{"1": "Endurance", "5": "Sortie longue"}`). En forme liste, le serveur attribue lui-même les catégories selon l'objectif. En forme objet, les catégories usuelles sont `Libre`, `Endurance`, `Fractionné`, `Sortie longue`, `Trail` ;
-- `estimated_vma` : **allure en minutes décimales par km**, strictement positive, malgré son nom. Ex. `5.5` = 5:30/km. Effet de bord : cette valeur met à jour la VMA du profil athlète en km/h (`60 / estimated_vma`).
+- Pour un plan multisport, `training_days` peut aussi être un objet tel que `{"0":{"sport":"swimming","category":"Endurance"},"2":{"sport":"strength","category":"Libre"},"4":{"sport":"cycling","category":"Endurance"}}`. Sports : `running`, `cycling`, `swimming`, `strength`. Le nombre de jours doit correspondre à `sessions_per_week`.
+- `estimated_vma` : obligatoire si une séance est en `running`, sinon facultative ; **allure en minutes décimales par km**, strictement positive. Ex. `5.5` = 5:30/km. Si fournie, elle met à jour la VMA du profil en km/h (`60 / estimated_vma`). La FTP n'est pas exigée.
+- La génération reste ancrée sur un objectif de course et produit des séances génériques, sans progression personnalisée pour les nouveaux sports.
 
 **Réponses :**
 - **200** : plan créé. La réponse contient le plan (`id`, `is_archived: false`, etc.). Les séances générées se consultent via `GET /api/ai/workouts` (elles référencent `plan_id`).
@@ -112,7 +114,7 @@ La clé est **secrète et personnelle** : ne l'écrivez jamais dans un dépôt, 
 ```
 
 **Champs obligatoires** : `workout_type` (texte libre ; valeurs usuelles : `Endurance`, `Libre`, `Fractionné`, `Sortie longue`, `Trail`, `Course`), `name`, `duration_minutes` (≥ 0), `difficulty_level` (entier **1 à 10**), `date` (ISO 8601).
-**Facultatifs** : `sport` (`running` par défaut), `category`, `distance_km`, `description`, `scheme`.
+**Facultatifs** : `sport` (`running` par défaut ; `cycling`, `swimming` ou `strength`), `category`, `distance_km`, `description`, `scheme`.
 **Réponse 201** : la séance créée (`id` à conserver pour les modifications ultérieures).
 
 **Interdits dans le corps (422)** : `athlete_id`, `plan_id`, `estimated_load` (calculé serveur), `is_validated`, `perceived_difficulty`, `athlete_comment`, et tout champ inconnu.
@@ -123,8 +125,18 @@ Liste de blocs de répétitions ; si `scheme` est fourni non vide, **le serveur 
 
 - Bloc : `{ "repetitions": <entier ≥ 1, défaut 1>, "intervals": [...] }` ;
 - Intervalle : `type` (étiquette libre), `duration` (**minutes**), `distance` (**mètres** !), `pace_min` / `pace_max` (**allures "min:ss" par km**, ex. `"5:30"`), `power_watt_min` / `power_watt_max` (watts) ;
-- **Chaque intervalle doit avoir soit une `duration`, soit une `distance` accompagnée d'une allure** — sinon 422 ; la valeur manquante est déduite de l'allure ;
+- Pour la course et le vélo, chaque intervalle doit avoir une `duration` ou une `distance` accompagnée d'une allure ; pour la natation et la musculation, `duration` peut manquer : la durée totale saisie est alors conservée ;
+- Natation et musculation : `recovery_seconds` (secondes) est compté à chaque répétition, y compris la dernière ; en musculation, `exercise_repetitions` (entier) et `load_kg` (kg) décrivent l'exercice. Les valeurs doivent être positives ou nulles ;
 - La distance totale peut renvoyer `null` si elle est indéterminable (par ex. intervalle timed sans allure).
+
+Exemples de `scheme` :
+```json
+[{"repetitions":4,"intervals":[{"type":"Nage libre","distance":100,"duration":3,"recovery_seconds":30}]}]
+```
+```json
+[{"repetitions":3,"intervals":[{"type":"Squat","exercise_repetitions":10,"load_kg":40,"recovery_seconds":60}]}]
+```
+Ces structures sont utilisables dans `POST /api/ai/workouts` et `PATCH /api/ai/workouts/{id}`. L'export Garmin de ces sports n'est pas disponible.
 
 Gardez la cohérence des unités : `duration` en minutes à l'intérieur des intervals, `distance` en mètres dans les intervals, mais `distance_km` en kilomètres au niveau de la séance.
 

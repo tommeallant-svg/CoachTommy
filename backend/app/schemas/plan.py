@@ -1,6 +1,12 @@
-from typing import Optional, List, Dict, Union
-from pydantic import BaseModel, Field, field_validator
+from typing import Optional, List, Dict, Union, Literal
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from datetime import date, datetime
+
+class TrainingDay(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    sport: Literal['running', 'cycling', 'swimming', 'strength']
+    category: str = 'Endurance'
+
 
 class PlanBase(BaseModel):
     race_name: str
@@ -10,8 +16,8 @@ class PlanBase(BaseModel):
     start_date: datetime
     sessions_per_week: int
     goal_type: str
-    training_days: Union[List[int], Dict[int, str]]
-    estimated_vma: float = Field(..., gt=0)
+    training_days: Union[List[int], Dict[int, Union[str, TrainingDay]]]
+    estimated_vma: Optional[float] = Field(None, gt=0)
 
     @field_validator('start_date')
     @classmethod

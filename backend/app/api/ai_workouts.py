@@ -28,6 +28,9 @@ class Interval(StrictModel):
     pace_max: Optional[str] = None
     power_watt_min: Optional[float] = None
     power_watt_max: Optional[float] = None
+    exercise_repetitions: Optional[int] = Field(None, ge=0)
+    load_kg: Optional[float] = Field(None, ge=0)
+    recovery_seconds: Optional[float] = Field(None, ge=0)
 
 
 class Block(StrictModel):

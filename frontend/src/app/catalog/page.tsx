@@ -109,8 +109,12 @@ export default function CatalogPage() {
     try {
       // Trouver l'athlète sélectionné dans la liste pour avoir sa VMA et FTP
       const athlete = athletes.find(a => a.id === selectedAthleteId);
-      const athleteVma = athlete?.vma || 15.0; // km/h par défaut si non renseigné
-      const athleteFtp = athlete?.ftp || 200; // Watts par défaut si non renseigné
+      const athleteVma = athlete?.vma;
+      const athleteFtp = athlete?.ftp;
+      if ((assigningWorkout.sport === 'running' && !(athleteVma > 0)) || (assigningWorkout.sport === 'cycling' && !(athleteFtp > 0))) {
+        alert("Les statistiques de l'athlète sont indisponibles. Renseignez sa VMA ou sa FTP.");
+        return;
+      }
 
       // Préparer la séance
       const formatMinutesToMMSS = (minutes: number): string => {
@@ -139,7 +143,7 @@ export default function CatalogPage() {
 
       const processedScheme = scheme.map((block: any) => {
         const repetitions = block.repetitions || 1;
-        const processedIntervals = block.intervals?.map((interval: any) => {
+        const processedIntervals = (block.intervals || [block]).map((interval: any) => {
           const newInterval = { ...interval };
 
           if (isCycling) {
@@ -149,7 +153,7 @@ export default function CatalogPage() {
             if (interval.power_ftp_max !== undefined) {
               newInterval.power_watt_max = convertFtpPercentageToWatts(athleteFtp, interval.power_ftp_max);
             }
-          } else {
+          } else if (assigningWorkout.sport === 'running') {
             if (interval.pace_vma_min !== undefined) {
               newInterval.pace_min = convertVmaPercentageToPace(athleteVma, interval.pace_vma_min);
             }
@@ -224,7 +228,7 @@ export default function CatalogPage() {
             <div className="bg-black p-3 rounded-2xl">
               <BookOpen className="w-6 h-6 text-white" />
             </div>
-            <h2 className="text-2xl font-black text-black uppercase tracking-tight">Entraînements Fractionnés</h2>
+            <h2 className="text-2xl font-black text-black uppercase tracking-tight">Entraînements</h2>
           </div>
         </div>
 
@@ -283,7 +287,7 @@ export default function CatalogPage() {
                         <h3 className="text-xl font-black text-black uppercase tracking-tight">{workout.name}</h3>
                         <div className="flex items-center gap-4 mt-1">
                           <span className="flex items-center gap-1 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                            <Tag className="w-3 h-3" /> {workout.workout_type}
+                            <Tag className="w-3 h-3" /> {({running: 'Course', cycling: 'Cyclisme', swimming: 'Natation', strength: 'Musculation'} as Record<string, string>)[workout.sport] || workout.sport} · {workout.workout_type}
                           </span>
                           <span className="flex items-center gap-1 text-[10px] font-black text-gray-400 uppercase tracking-widest">
                             <Activity className="w-3 h-3" /> Difficulté : {workout.perceived_difficulty}/10

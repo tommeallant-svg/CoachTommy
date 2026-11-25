@@ -1,4 +1,5 @@
 export type WorkoutType = 'Endurance' | 'Tempo' | 'Seuil' | 'VO2 Max' | 'Sprint' | 'Libre' | 'Trail' | 'Fractionné' | 'Sortie Longue';
+export type WorkoutSport = 'running' | 'cycling' | 'swimming' | 'strength';
 
 export interface WorkoutInterval {
   type: string;
@@ -8,6 +9,9 @@ export interface WorkoutInterval {
   power_watt_max?: number;
   duration?: number;
   distance?: number;
+  exercise_repetitions?: number;
+  load_kg?: number;
+  recovery_seconds?: number;
 }
 
 export interface WorkoutBlock {
@@ -17,7 +21,7 @@ export interface WorkoutBlock {
 
 export interface Workout {
   id: number;
-  sport: 'running' | 'cycling';
+  sport: WorkoutSport;
   workout_type: string;
   category: string;
   name: string;
@@ -46,6 +50,9 @@ export interface CatalogInterval {
   power_ftp_max?: number; // en %
   duration?: number;
   distance?: number;
+  exercise_repetitions?: number;
+  load_kg?: number;
+  recovery_seconds?: number;
 }
 
 export interface CatalogBlock {
@@ -55,7 +62,7 @@ export interface CatalogBlock {
 
 export interface CatalogWorkout {
   id: number;
-  sport: 'running' | 'cycling';
+  sport: WorkoutSport;
   name: string;
   workout_type: string;
   category: string;

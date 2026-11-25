@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { fetchWithAuth, getAuthUser } from '@/lib/api';
-import { CatalogWorkout, CatalogInterval, CatalogBlock } from '@/types/workout';
+import { CatalogWorkout, CatalogInterval, CatalogBlock, WorkoutSport } from '@/types/workout';
 
 const formatMinutesToMMSS = (minutes: number | undefined): string => {
   if (minutes === undefined) return '';
@@ -82,11 +82,12 @@ export default function CatalogEditPage() {
             found.scheme = found.scheme.map((i: any) => ({
               repetitions: i.repetitions || 1,
               intervals: [{
+                ...i,
                 type: i.type,
                 duration: i.duration,
                 distance: i.distance,
-                pace_vma_min: i.pace_vma || 0,
-                pace_vma_max: i.pace_vma || 0
+                pace_vma_min: i.pace_vma_min ?? i.pace_vma,
+                pace_vma_max: i.pace_vma_max ?? i.pace_vma
               }]
             }));
           }
@@ -105,7 +106,7 @@ export default function CatalogEditPage() {
   const addBlock = () => {
     setWorkout({
       ...workout,
-      scheme: [...(workout.scheme || []), { repetitions: 1, intervals: [{ type: 'Nouveau', duration: 1, pace_vma_min: 80, pace_vma_max: 85 }] }]
+      scheme: [...(workout.scheme || []), { repetitions: 1, intervals: [workout.sport === 'strength' || workout.sport === 'swimming' ? { type: '' } : { type: 'Nouveau', duration: 1, pace_vma_min: 80, pace_vma_max: 85 }] }]
     });
   };
 
@@ -123,7 +124,7 @@ export default function CatalogEditPage() {
 
   const addInterval = (blockIdx: number) => {
     const newScheme = [...(workout.scheme || [])];
-    newScheme[blockIdx].intervals.push({ type: 'Nouvel intervalle', duration: 1, pace_vma_min: 80, pace_vma_max: 85 });
+    newScheme[blockIdx].intervals.push(workout.sport === 'strength' || workout.sport === 'swimming' ? { type: '' } : { type: 'Nouvel intervalle', duration: 1, pace_vma_min: 80, pace_vma_max: 85 });
     setWorkout({ ...workout, scheme: newScheme });
   };
 
@@ -153,6 +154,8 @@ export default function CatalogEditPage() {
       });
       if (res.ok) {
         router.push('/catalog');
+      } else {
+        alert("Erreur lors de l’enregistrement de la séance du catalogue");
       }
     } catch (err) {
       console.error(err);
@@ -202,11 +205,13 @@ export default function CatalogEditPage() {
               <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Discipline</label>
               <select 
                 value={workout.sport} 
-                onChange={e => setWorkout({...workout, sport: e.target.value as 'running' | 'cycling'})}
+                onChange={e => setWorkout({...workout, sport: e.target.value as WorkoutSport, scheme: []})}
                 className="w-full bg-gray-50 border-none rounded-2xl px-6 py-4 font-bold text-black outline-none focus:ring-2 focus:ring-black transition-all appearance-none"
               >
                 <option value="running">Course à pied</option>
                 <option value="cycling">Cyclisme</option>
+                <option value="swimming">Natation</option>
+                <option value="strength">Musculation</option>
               </select>
             </div>
             <div className="space-y-2">
@@ -281,10 +286,11 @@ export default function CatalogEditPage() {
                   <div className="flex items-center gap-6">
                     <div className="flex items-center gap-2">
                       <RotateCcw className="w-4 h-4 text-gray-400" />
-                      <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Répétitions du bloc</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">{workout.sport === 'strength' ? 'Séries (répétitions du bloc)' : 'Répétitions du bloc'}</span>
                     </div>
                     <input 
                       type="number" 
+                      min="1"
                       value={block.repetitions} 
                       onChange={e => updateBlock(bIdx, 'repetitions', parseInt(e.target.value))}
                       className="w-20 bg-gray-50 border-none rounded-xl px-4 py-2 font-black text-black outline-none focus:ring-2 focus:ring-black transition-all"
@@ -311,7 +317,7 @@ export default function CatalogEditPage() {
                   {block.intervals.map((interval, iIdx) => (
                     <div key={iIdx} className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end bg-gray-50/50 p-6 rounded-3xl border border-transparent hover:border-gray-200 transition-all">
                       <div className="md:col-span-3 space-y-2">
-                        <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">Type</label>
+                        <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">{workout.sport === 'strength' ? 'Nom de l’exercice' : 'Type'}</label>
                         <input 
                           type="text" 
                           value={interval.type} 
@@ -320,6 +326,20 @@ export default function CatalogEditPage() {
                         />
                       </div>
 
+                      {(workout.sport === 'strength' || workout.sport === 'swimming') ? (
+                        <div className="md:col-span-8 grid grid-cols-2 gap-3">
+                          {(workout.sport === 'strength'
+                            ? [['exercise_repetitions', 'Répétitions exercice', '1'], ['load_kg', 'Charge (kg)', '0.1'], ['duration', 'Durée facultative (min)', '0.1'], ['recovery_seconds', 'Récupération (s)', '1']]
+                            : [['distance', 'Distance (m)', '1'], ['duration', 'Durée (min)', '0.1'], ['recovery_seconds', 'Récupération (s)', '1']]
+                          ).map(([field, label, step]) => (
+                            <label key={field} className="text-[9px] font-black uppercase tracking-widest text-gray-400">{label}
+                              <input type="number" min="0" step={step} value={interval[field as keyof CatalogInterval] ?? ''}
+                                onChange={e => updateInterval(bIdx, iIdx, { [field]: e.target.value === '' ? undefined : Number(e.target.value) })}
+                                className="w-full bg-white rounded-xl px-4 py-3 font-bold text-black" />
+                            </label>
+                          ))}
+                        </div>
+                      ) : (<>
                       <div className="md:col-span-3 space-y-2">
                         <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 flex items-center gap-1">
                           <Clock className="w-3 h-3" /> Volume
@@ -375,6 +395,7 @@ export default function CatalogEditPage() {
                         </div>
                       </div>
 
+                      </>)}
                       <div className="md:col-span-1 flex justify-end pb-1">
                         <button 
                           onClick={() => removeInterval(bIdx, iIdx)}

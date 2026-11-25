@@ -1,3 +1,6 @@
+import math
+
+
 def _pace_minutes(value):
     try:
         parts = str(value).split(':')
@@ -7,11 +10,13 @@ def _pace_minutes(value):
         return None
 
 
-def calculate_volumes(scheme):
+def calculate_volumes(scheme, sport='running'):
     """Les durées sont en minutes, les distances des intervalles en mètres."""
     duration = 0.0
     distance = 0.0
     distance_known = True
+    duration_known = True
+    new_sport = (sport or '').lower() in ('swimming', 'strength')
     for block in scheme:
         if not isinstance(block, dict) or not isinstance(block.get('intervals', []), list):
             raise ValueError('Structure de séance invalide')
@@ -23,21 +28,27 @@ def calculate_volumes(scheme):
                 raise ValueError('Intervalle invalide')
             minutes = interval.get('duration')
             km = interval.get('distance')
-            if any(value is not None and (not isinstance(value, (int, float)) or value < 0) for value in (minutes, km)):
+            values = (minutes, km, interval.get('exercise_repetitions'), interval.get('load_kg'),
+                      interval.get('recovery_seconds'))
+            if any(value is not None and (isinstance(value, bool) or not isinstance(value, (int, float))
+                                          or not math.isfinite(value) or value < 0) for value in values):
                 raise ValueError('Volume de séance invalide')
             km = km / 1000 if km is not None else None
             paces = [_pace_minutes(interval.get(key)) for key in ('pace_min', 'pace_max')]
             paces = [pace for pace in paces if pace is not None]
             pace = sum(paces) / len(paces) if paces else None
-            if minutes is None and km is not None and pace:
+            if not new_sport and minutes is None and km is not None and pace:
                 minutes = km * pace
             if minutes is None:
-                raise ValueError('Une durée ou une distance avec allure est nécessaire pour chaque intervalle')
-            if km is None and minutes is not None and pace:
+                if not new_sport:
+                    raise ValueError('Une durée ou une distance avec allure est nécessaire pour chaque intervalle')
+                duration_known = False
+            if not new_sport and km is None and minutes is not None and pace:
                 km = minutes / pace
-            duration += (minutes or 0) * repetitions
+            recovery = (interval.get('recovery_seconds') or 0) / 60 if new_sport else 0
+            duration += ((minutes or 0) + recovery) * repetitions
             if km is None:
                 distance_known = False
             else:
                 distance += km * repetitions
-    return round(duration), round(distance, 3) if distance_known else None
+    return round(duration) if duration_known else None, round(distance, 3) if distance_known else None

@@ -45,6 +45,11 @@ def accessible_workouts(db, current_user):
         return query.filter(or_(Workout.athlete_id == current_user.id, Workout.athlete_id.in_(assigned)))
     return query.filter(Workout.athlete_id == current_user.id)
 
+
+def check_garmin_sport(workout):
+    if (workout.sport or '').lower() in ('swimming', 'strength'):
+        raise HTTPException(status_code=422, detail="Export Garmin indisponible pour ce sport")
+
 @router.post("", response_model=WorkoutResponse, status_code=status.HTTP_201_CREATED)
 def create_workout(workout: WorkoutCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     athlete_id = current_user.id
@@ -148,6 +153,7 @@ def export_workout_garmin(workout_id: int, db: Session = Depends(get_db), curren
     if db_workout is None:
         raise HTTPException(status_code=404, detail="Workout not found")
 
+    check_garmin_sport(db_workout)
     try:
         fit_bytes = generate_workout_fit(db_workout)
     except Exception as e:
@@ -243,6 +249,7 @@ async def push_workout_to_garmin(workout_id: int, db: Session = Depends(get_db),
     
     if db_workout is None:
         raise HTTPException(status_code=404, detail="Workout not found")
+    check_garmin_sport(db_workout)
     payload = GarminMapper.workout_to_garmin(db_workout)
 
     # Check if user has Garmin tokens

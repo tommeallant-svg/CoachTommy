@@ -154,6 +154,8 @@ async def sync_workout_to_garmin(
     workout = db.query(Workout).filter(Workout.id == workout_id).first()
     if not workout:
         raise HTTPException(status_code=404, detail="Workout non trouvé")
+    if (workout.sport or '').lower() in ('swimming', 'strength'):
+        raise HTTPException(status_code=422, detail="Export Garmin indisponible pour ce sport")
         
     # 2. Vérifier la connexion Garmin
     tokenstore_path = GarminClient.sync_tokens_to_file(current_user.garmin_token)

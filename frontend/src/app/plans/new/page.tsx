@@ -36,6 +36,7 @@ const formatMinutesToMMSS = (minutes: number): string => {
 
 const GOAL_TYPES = ['plaisir', 'maintien', 'mixte', 'intensité', 'trail'];
 const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+const SPORTS: Record<string, string> = { running: 'Course', cycling: 'Vélo', swimming: 'Natation', strength: 'Musculation' };
 
 const DEFAULT_ASSIGNMENTS: Record<string, Record<number, Record<number, string>>> = {
   "plaisir": {
@@ -159,6 +160,7 @@ function NewPlanPageContent() {
     sessions_per_week: 3,
     goal_type: 'maintien',
     training_days: {} as Record<number, string>,
+    sports: {} as Record<number, string>,
     estimated_vma: 5.0,
     athlete_id: athleteIdParam ? parseInt(athleteIdParam) : null
   });
@@ -218,7 +220,8 @@ function NewPlanPageContent() {
       setMovingDay(null);
       setFormData(prev => ({
         ...prev,
-        training_days: { ...defaults }
+        training_days: { ...defaults },
+        sports: {}
       }));
     }
   }, [formData.goal_type, formData.sessions_per_week]);
@@ -246,6 +249,12 @@ function NewPlanPageContent() {
       const type = newDays[fromDayIdx];
       if (!type) return prev;
       const targetType = newDays[toDayIdx];
+      const sports = {...prev.sports};
+      const sourceSport = sports[fromDayIdx] || 'running';
+      const targetSport = sports[toDayIdx] || 'running';
+      sports[toDayIdx] = sourceSport;
+      if (targetType) sports[fromDayIdx] = targetSport;
+      else delete sports[fromDayIdx];
 
       newDays[toDayIdx] = type;
       if (targetType) {
@@ -253,7 +262,7 @@ function NewPlanPageContent() {
       } else {
         delete newDays[fromDayIdx];
       }
-      return {...prev, training_days: newDays};
+      return {...prev, training_days: newDays, sports};
     });
     setMovingDay(null);
   };
@@ -325,6 +334,8 @@ function NewPlanPageContent() {
         method: 'POST',
         body: JSON.stringify({
           ...formData,
+          training_days: Object.keys(formData.training_days).every(day => (formData.sports[Number(day)] || 'running') === 'running') ? formData.training_days : Object.fromEntries(Object.entries(formData.training_days).map(([day, category]) => [day, { sport: formData.sports[Number(day)] || 'running', category }])),
+          estimated_vma: Object.keys(formData.training_days).some(day => (formData.sports[Number(day)] || 'running') === 'running') ? formData.estimated_vma : null,
           athlete_id: formData.athlete_id,
           race_date: format(new Date(formData.race_date), "yyyy-MM-dd'T'12:00:00"),
           start_date: format(new Date(formData.start_date), "yyyy-MM-dd'T'00:00:00"),
@@ -549,6 +560,17 @@ function NewPlanPageContent() {
                 </div>
               </DndContext>
 
+              <div className="space-y-3">
+                {Object.keys(formData.training_days).map(day => (
+                  <label key={day} className="flex items-center justify-between gap-4 text-sm font-bold">
+                    {DAYS[Number(day)]}
+                    <select aria-label={`Sport ${DAYS[Number(day)]}`} className="rounded-xl border border-gray-300 p-2" value={formData.sports[Number(day)] || 'running'} onChange={e => setFormData(prev => ({...prev, sports: {...prev.sports, [Number(day)]: e.target.value}}))}>
+                      {Object.entries(SPORTS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                    </select>
+                  </label>
+                ))}
+              </div>
+
               {movingDay !== null && (
                 <div className="space-y-3 rounded-2xl bg-gray-50 p-4">
                   <label htmlFor="move-workout-day" className="block text-sm font-bold text-black">
@@ -576,7 +598,7 @@ function NewPlanPageContent() {
               </p>
             </div>
             
-            <div className="space-y-2">
+            {Object.keys(formData.training_days).some(day => (formData.sports[Number(day)] || 'running') === 'running') && <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 ml-1">VMA Estimée (min/km)</label>
                 <span className="text-sm font-black text-black">{formatMinutesToMMSS(formData.estimated_vma)}/km</span>
@@ -594,7 +616,7 @@ function NewPlanPageContent() {
                 <span>Rapide (2:30)</span>
                 <span>Lent (6:00)</span>
               </div>
-            </div>
+            </div>}
           </section>
 
           <button

@@ -99,6 +99,26 @@ class AIWorkoutTests(unittest.TestCase):
         self.assertEqual(self.client.get(url, headers=self.headers, params={
             'date_from': '2027-01-01T00:00:00', 'date_to': '2026-01-01T00:00:00'}).status_code, 422)
 
+    def test_swimming_and_strength_structures(self):
+        swimming = [{'repetitions': 3, 'intervals': [
+            {'type': 'swim', 'distance': 100, 'duration': 2, 'recovery_seconds': 30}]}]
+        response = self.client.post('/api/ai/workouts', headers=self.headers, json={
+            **self.data, 'sport': 'swimming', 'scheme': swimming})
+        self.assertEqual(response.status_code, 201, response.text)
+        self.assertEqual((response.json()['duration_minutes'], response.json()['distance_km']), (8, 0.3))
+        url = '/api/ai/workouts/' + str(response.json()['id'])
+        strength = [{'repetitions': 2, 'intervals': [
+            {'type': 'squat', 'exercise_repetitions': 10, 'load_kg': 40, 'recovery_seconds': 60}]}]
+        response = self.client.patch(url, headers=self.headers, json={
+            'sport': 'strength', 'duration_minutes': 45, 'scheme': strength})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()['duration_minutes'], 45)
+        for field in ('duration', 'distance', 'exercise_repetitions', 'load_kg', 'recovery_seconds'):
+            invalid = [{'intervals': [{'type': 'squat', field: -1}]}]
+            self.assertEqual(self.client.patch(url, headers=self.headers, json={'scheme': invalid}).status_code, 422)
+        self.assertEqual(self.client.patch(url, headers=self.headers, json={
+            'scheme': [{'intervals': [{'type': 'squat', 'unknown': 1}]}]}).status_code, 422)
+
 
 if __name__ == '__main__':
     unittest.main()

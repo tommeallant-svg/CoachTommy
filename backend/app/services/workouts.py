@@ -12,9 +12,9 @@ def calculate_load(duration_minutes, difficulty_level):
     return duration_minutes + duration_minutes * difficulty_level / 5
 
 
-def workout_volumes(scheme):
+def workout_volumes(scheme, sport='running'):
     try:
-        return calculate_volumes(scheme)
+        return calculate_volumes(scheme, sport)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
 
@@ -38,7 +38,9 @@ def list_workouts(db, athlete_id, skip, limit, include_archived, date_from, date
 def create_workout(db, data, athlete_id):
     workout = Workout(**{**data, "athlete_id": athlete_id})
     if workout.scheme:
-        workout.duration_minutes, workout.distance_km = workout_volumes(workout.scheme)
+        duration, workout.distance_km = workout_volumes(workout.scheme, workout.sport or 'running')
+        if duration is not None:
+            workout.duration_minutes = duration
     workout.estimated_load = calculate_load(workout.duration_minutes, workout.difficulty_level)
     db.add(workout)
     db.commit()
@@ -60,11 +62,15 @@ def update_workout(db, workout, data):
             if scheme == old_scheme:
                 scheme[0]["intervals"][0]["distance"] *= 1000
                 data["scheme"] = scheme
+    scheme = data.get("scheme", workout.scheme)
+    if scheme and any(key in data for key in ("scheme", "sport", "duration_minutes", "distance_km")):
+        duration, distance = workout_volumes(scheme, data.get("sport", workout.sport) or 'running')
+        data["distance_km"] = distance
+        if duration is not None:
+            data["duration_minutes"] = duration
     for key, value in data.items():
         setattr(workout, key, value)
-    if workout.scheme and any(key in data for key in ("scheme", "duration_minutes", "distance_km")):
-        workout.duration_minutes, workout.distance_km = workout_volumes(workout.scheme)
-    if any(key in data for key in ("scheme", "duration_minutes", "distance_km", "difficulty_level")):
+    if any(key in data for key in ("scheme", "sport", "duration_minutes", "distance_km", "difficulty_level")):
         workout.estimated_load = calculate_load(workout.duration_minutes, workout.difficulty_level)
     db.commit()
     db.refresh(workout)
