@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { getAuthToken, getAuthUser } from '@/lib/api';
 
@@ -28,12 +29,13 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
   return (
     <div className="md:flex min-h-screen">
       <div className="md:hidden bg-brand-dark p-4">
-        <button type="button" className="text-white font-bold" aria-expanded={open} aria-controls="main-navigation" onClick={() => setOpen(!open)}>
-          {open ? 'Fermer le menu' : 'Ouvrir le menu'}
+        <button type="button" className="flex items-center gap-3 text-white font-bold" aria-expanded={open} aria-controls="main-navigation" onClick={() => setOpen(!open)}>
+          <Image src="/logo-coachtommy.jpg" alt="" width={64} height={48} className="w-16 h-auto rounded-lg" />
+          <span>{open ? 'Fermer le menu' : 'Ouvrir le menu'}</span>
         </button>
       </div>
       <nav id="main-navigation" aria-label="Navigation principale" className={`${open ? 'block' : 'hidden'} md:block bg-brand-dark text-white p-5 md:w-56 shrink-0`}>
-        <div className="font-black text-xl mb-6">Coach Tommy</div>
+        <Image src="/logo-coachtommy.jpg" alt="CoachTommy" width={180} height={135} className="mb-6 w-full h-auto rounded-xl" />
         <ul className="space-y-2">
           {links.map(link => <li key={link.href}><Link href={link.href} aria-current={pathname === link.href ? 'page' : undefined} className="block rounded-xl px-4 py-3 hover:bg-white/10 focus:bg-white/10">{link.label}</Link></li>)}
         </ul>

@@ -74,12 +74,41 @@ class RegistrationTest(unittest.TestCase):
             self.assertNotIn(data["password"], response.text)
         self.assertEqual(self.client.post("/api/auth/register", json={"email": "a@example.com", "password": "é" * 36}).status_code, 201)
 
-    def test_integrity_conflict_rolls_back(self):
-        with patch("sqlalchemy.orm.Session.commit", side_effect=IntegrityError("insert", {}, Exception())):
-            response = self.client.post("/api/auth/register", json={"email": "a@example.com", "password": "password123"})
-        self.assertEqual(response.status_code, 409)
+    def test_special_characters_and_login(self):
+        password = "éà!#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"
+        response = self.client.post("/api/auth/register", json={"email": "special+tag@example.com", "password": password})
+        self.assertEqual(response.status_code, 201)
+        login = self.client.post("/api/auth/login", data={"username": "special+tag@example.com", "password": password})
+        self.assertEqual(login.status_code, 200)
+        self.assertEqual(self.client.post("/api/auth/register", json={"email": "SPECIAL+TAG@example.com", "password": password}).status_code, 409)
+
+    def test_null_password_is_rejected_without_disclosure(self):
+        password = "password\u0000special"
+        response = self.client.post("/api/auth/register", json={"email": "null@example.com", "password": password})
+        self.assertEqual(response.status_code, 422)
+        self.assertNotIn("password\\u0000special", response.text)
+
+    def test_unrelated_integrity_error_is_not_a_duplicate(self):
+        with TestClient(self.client.app, raise_server_exceptions=False) as client, patch("sqlalchemy.orm.Session.commit", side_effect=IntegrityError("insert", {}, Exception())):
+            response = client.post("/api/auth/register", json={"email": "a@example.com", "password": "password123"})
+        self.assertEqual(response.status_code, 500)
         with self.Session() as db:
             self.assertEqual(db.query(user.User).count(), 0)
+
+    def test_duplicate_insert_race_returns_conflict(self):
+        from app.auth import get_password_hash
+
+        def insert_competing_account(password):
+            with self.Session() as db:
+                db.add(user.User(email="race@example.com", hashed_password="x", role="athlete"))
+                db.commit()
+            return get_password_hash(password)
+
+        with patch("app.api.auth.get_password_hash", side_effect=insert_competing_account):
+            response = self.client.post("/api/auth/register", json={"email": "race@example.com", "password": "password123"})
+        self.assertEqual(response.status_code, 409)
+        with self.Session() as db:
+            self.assertEqual(db.query(user.User).count(), 1)
 
 
 if __name__ == "__main__":

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Activity, ArrowLeft, LogOut, Watch } from 'lucide-react';
 import AthleteStatsModal from '@/components/AthleteStatsModal';
 import GarminAuthModal from '@/components/GarminAuthModal';
+import NotificationSettings from '@/components/NotificationSettings';
 import { clearAuthToken, fetchWithAuth, getAuthToken } from '@/lib/api';
 import { User } from '@/types/user';
 
@@ -165,6 +166,7 @@ export default function ProfilePage() {
 
         {user?.role === 'athlete' && <section className="space-y-4 rounded-3xl bg-white p-6 shadow-sm" aria-labelledby="ai-title">
           <h2 id="ai-title" className="text-xl font-black">Accès IA</h2>
+          <a href="/guide-acces-ia.md" download="guide-acces-ia-coachtommy.md" className="inline-block font-bold text-brand-primary underline">Télécharger le guide d’intégration pour agents IA (.md)</a>
           <p>Cette clé permet à une application IA de consulter et modifier vos plans et séances, et de supprimer vos plans. La suppression d’un plan supprime aussi les séances qui lui sont liées.</p>
           <p>Ne divulguez cette clé qu’à une application de confiance : toute personne qui la possède peut accéder à vos données et agir en votre nom.</p>
           <p aria-live="polite">{aiActive === null ? (aiError ? 'État indisponible.' : 'Chargement de l’état…') : aiActive ? 'Clé active' : 'Aucune clé active'}</p>
@@ -184,6 +186,8 @@ export default function ProfilePage() {
             <p role="status">{aiCopied ? 'Clé copiée.' : ''}</p>
           </div>}
         </section>}
+
+        {user && <NotificationSettings />}
 
         <section className="space-y-4 rounded-3xl bg-white p-6 shadow-sm" aria-labelledby="garmin-title">
           <h2 id="garmin-title" className="flex items-center gap-2 text-xl font-black"><Watch className="h-5 w-5" /> Garmin</h2>

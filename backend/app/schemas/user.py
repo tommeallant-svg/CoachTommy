@@ -23,6 +23,8 @@ class UserRegister(BaseModel):
     @field_validator("password")
     @classmethod
     def validate_password(cls, value):
+        if "\x00" in value:
+            raise ValueError("Le mot de passe ne doit pas contenir de caractère nul.")
         if len(value) < 8 or len(value.encode("utf-8")) > 72:
             raise ValueError("Le mot de passe doit comporter au moins 8 caractères et au maximum 72 octets UTF-8.")
         return value
