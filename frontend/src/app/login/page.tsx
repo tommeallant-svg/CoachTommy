@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Activity } from 'lucide-react';
+import Image from 'next/image';
 import { setAuthToken } from '@/lib/api';
 
 export default function LoginPage() {
@@ -55,12 +55,7 @@ export default function LoginPage() {
       
       <div className="max-w-md w-full space-y-8 bg-white p-10 rounded-[2.5rem] shadow-2xl border border-brand-light relative z-10">
         <div className="text-center">
-          <div className="flex justify-center">
-            <div className="bg-brand-dark p-4 rounded-2xl shadow-lg shadow-brand-dark/20">
-              <Activity className="w-10 h-10 text-white" />
-            </div>
-          </div>
-          <h2 className="mt-6 text-4xl font-black text-brand-dark tracking-tight uppercase">Coach Tommy</h2>
+          <Image src="/logo-coachtommy.jpg" alt="CoachTommy" width={300} height={225} className="mx-auto w-56 h-auto" priority />
           <p className="mt-2 text-sm text-brand-secondary font-medium">Connectez-vous pour commencer l'entraînement.</p>
         </div>
         

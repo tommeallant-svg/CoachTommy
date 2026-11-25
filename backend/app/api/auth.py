@@ -38,7 +38,9 @@ def register(data: UserRegister, db: Session = Depends(get_db)):
         db.commit()
     except IntegrityError:
         db.rollback()
-        raise HTTPException(status_code=409, detail="Cette adresse email est déjà utilisée.")
+        if db.query(User).filter(func.lower(func.trim(User.email)) == email).first():
+            raise HTTPException(status_code=409, detail="Cette adresse email est déjà utilisée.")
+        raise
     db.refresh(user)
     return user
 
